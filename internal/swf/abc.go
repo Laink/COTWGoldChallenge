@@ -329,6 +329,33 @@ func (a *ABC) Name(s string) int {
 	return max(1, a.nMn) + len(a.newNames) - 1
 }
 
+// QName returns a multiname for a name in an existing package namespace, e.g. "flash.net".
+func (a *ABC) QName(pkg, s string) (int, error) {
+	ns := -1
+	for i := range a.NSKinds {
+		if a.NSKinds[i] == nsPackage && a.NSNames[i] == pkg {
+			ns = i
+			break
+		}
+	}
+	if ns < 0 {
+		return 0, fmt.Errorf("namespace %s not found", pkg)
+	}
+	for i, m := range a.Multinames {
+		if i > 0 && m.Kind == mnQName && m.NS == ns && m.Name == s {
+			return i, nil
+		}
+	}
+	idx := a.String(s)
+	for i, x := range a.newNames {
+		if x == [2]int{ns, idx} {
+			return max(1, a.nMn) + i, nil
+		}
+	}
+	a.newNames = append(a.newNames, [2]int{ns, idx})
+	return max(1, a.nMn) + len(a.newNames) - 1, nil
+}
+
 // Replace sets new code for a method body.
 func (a *ABC) Replace(bd *Body, code []byte, maxStack, locals int) {
 	c := *bd
@@ -404,3 +431,14 @@ func sortedBodies(m map[int]*Body) []*Body {
 	}
 	return out
 }
+
+// DoubleAt returns a number constant of the original pool.
+func (a *ABC) DoubleAt(i int) float64 {
+	r := &reader{b: a.raw, p: a.dblPos}
+	r.u30()
+	p := r.p + 8*(i-1)
+	return math.Float64frombits(binary.LittleEndian.Uint64(a.raw[p:]))
+}
+
+// HasExceptions reports whether the body has exception handlers.
+func (bd *Body) HasExceptions() bool { return len(bd.tail) > 0 && bd.tail[0] != 0 }

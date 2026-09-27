@@ -1,0 +1,710 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>COTWGoldChallenge</title>
+<style>
+@font-face { font-family: "Barlow"; src: url("fonts/barlow-latin-400-normal.woff2") format("woff2"); font-weight: 400; font-display: swap; }
+@font-face { font-family: "Barlow"; src: url("fonts/barlow-latin-600-normal.woff2") format("woff2"); font-weight: 600; font-display: swap; }
+@font-face { font-family: "Barlow Condensed"; src: url("fonts/barlow-condensed-latin-600-normal.woff2") format("woff2"); font-weight: 600; font-display: swap; }
+
+:root {
+  --bg: #141618;
+  --panel: #1c1f22;
+  --panel-2: #23272b;
+  --line: #2f3439;
+  --text: #e9e6df;
+  --muted: #9ba1a6;
+  --accent: #ec9a1e;
+  --accent-ink: #1a1307;
+  --focus: #f3b24f;
+  --radius: 2px;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--text); }
+body { font: 400 15px/1.5 "Barlow", "Segoe UI", system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+h1, h2, .banner, .seg label, .btn { font-family: "Barlow Condensed", "Barlow", sans-serif; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; }
+
+.top { display: flex; align-items: baseline; gap: 16px; padding: 22px 32px 18px; border-bottom: 1px solid var(--line); }
+.top h1 { margin: 0; font-size: 26px; }
+.top .mark { color: var(--accent); }
+.top .credit { color: var(--muted); font-size: 14px; }
+
+.layout { display: grid; grid-template-columns: minmax(0, 620px) minmax(0, 1fr); gap: 40px; padding: 28px 32px 120px; max-width: 1400px; }
+@media (max-width: 1000px) { .layout { grid-template-columns: 1fr; } .side { position: static; } }
+
+.intro { color: var(--muted); margin: 0 0 28px; max-width: 60ch; }
+
+section { margin-bottom: 30px; }
+.banner { display: block; background: var(--accent); color: var(--accent-ink); font-size: 17px; padding: 5px 12px; border-radius: var(--radius) var(--radius) 0 0; }
+.group { background: var(--panel); border: 1px solid var(--line); border-top: 0; border-radius: 0 0 var(--radius) var(--radius); }
+.field { padding: 16px 18px; border-top: 1px solid var(--line); }
+.field:first-child { border-top: 0; }
+.field > .label { display: block; font-weight: 600; margin-bottom: 8px; }
+.field .help { color: var(--muted); font-size: 13.5px; margin-top: 7px; }
+.field.inline { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 16px; }
+.field.inline > .label { margin: 0; }
+.field.inline .help { grid-column: 1 / -1; margin-top: -6px; }
+
+/* choices as game tabs */
+.seg { display: flex; flex-direction: column; gap: 6px; }
+.seg.row { flex-direction: row; flex-wrap: wrap; }
+.seg input { position: absolute; opacity: 0; pointer-events: none; }
+.seg label { display: block; cursor: pointer; padding: 8px 12px; background: var(--panel-2); border: 1px solid var(--line); border-radius: var(--radius); font-size: 15px; letter-spacing: .03em; text-transform: none; font-family: "Barlow", sans-serif; font-weight: 400; color: var(--text); }
+.seg.row label { font-family: "Barlow Condensed", sans-serif; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; min-width: 72px; text-align: center; }
+.seg label:hover { border-color: #4a5157; }
+.seg input:checked + label { border-color: var(--accent); box-shadow: inset 3px 0 0 var(--accent); background: #2a2621; }
+.seg.row input:checked + label { box-shadow: inset 0 -3px 0 var(--accent); }
+.seg input:focus-visible + label { outline: 2px solid var(--focus); outline-offset: 1px; }
+
+/* toggle */
+.toggle { position: relative; width: 46px; height: 24px; }
+.toggle input { position: absolute; inset: 0; opacity: 0; margin: 0; cursor: pointer; z-index: 1; }
+.toggle span { position: absolute; inset: 0; background: var(--panel-2); border: 1px solid var(--line); border-radius: var(--radius); transition: background .15s; }
+.toggle span::after { content: ""; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; background: var(--muted); border-radius: 1px; transition: transform .15s, background .15s; }
+.toggle input:checked + span { background: #3a2c14; border-color: var(--accent); }
+.toggle input:checked + span::after { transform: translateX(22px); background: var(--accent); }
+.toggle input:focus-visible + span { outline: 2px solid var(--focus); outline-offset: 1px; }
+
+/* inputs */
+input[type=number], input[type=text], input[type=date], input[type=time] {
+  font: inherit; color: var(--text); background: var(--panel-2); border: 1px solid var(--line); border-radius: var(--radius); padding: 7px 10px; color-scheme: dark;
+}
+input[type=number] { width: 96px; }
+input[type=text] { width: 100%; }
+input:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.range { display: flex; align-items: center; gap: 14px; }
+.range input { flex: 1; accent-color: var(--accent); }
+.range input[type=number] { flex: 0 0 96px; }
+.range output { font-variant-numeric: tabular-nums; min-width: 44px; text-align: right; color: var(--muted); }
+.date { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; }
+.date .time { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 13.5px; }
+.check { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+.check input { accent-color: var(--accent); width: 16px; height: 16px; }
+.date.off input[type=date], .date.off input[type=time] { opacity: .35; pointer-events: none; }
+
+details.adv { margin-top: 10px; border-top: 1px solid var(--line); }
+details.adv > summary { cursor: pointer; list-style: none; padding: 16px 0; font-family: "Barlow Condensed", sans-serif; font-weight: 600; font-size: 18px; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); }
+details.adv > summary::-webkit-details-marker { display: none; }
+details.adv > summary::before { content: "+"; display: inline-block; width: 18px; color: var(--accent); }
+details.adv[open] > summary::before { content: "\2212"; }
+details.adv[open] > summary { color: var(--text); }
+
+/* preview */
+.side { position: sticky; top: 24px; align-self: start; }
+.side h2 { font-size: 17px; margin: 0 0 10px; color: var(--muted); }
+.screen { position: relative; width: 100%; aspect-ratio: 16 / 9; background: #0d0f10 linear-gradient(180deg, #222a2e 0%, #1a2022 55%, #202419 56%, #171a13 100%); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
+.screen canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+.side .note { color: var(--muted); font-size: 13px; margin-top: 8px; }
+
+/* save bar */
+.bar { position: fixed; left: 0; right: 0; bottom: 0; display: flex; align-items: center; gap: 12px; padding: 14px 32px; background: rgba(20, 22, 24, .96); border-top: 1px solid var(--line); }
+.bar .status { flex: 1; color: var(--muted); }
+@media (max-width: 700px) { .bar { flex-wrap: wrap; padding: 12px 16px; } .bar .status { flex-basis: 100%; } .layout, .top { padding-left: 16px; padding-right: 16px; } }
+.side .head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.side .head h2 { margin: 0; }
+.side .seg.row label { min-width: 0; padding: 4px 10px; font-size: 14px; }
+.bar .status.dirty { color: var(--focus); }
+.bar .status.ok { color: #9fcf8a; }
+.bar .status.err { color: #f08a7a; }
+.btn { cursor: pointer; font-size: 16px; padding: 9px 18px; border-radius: var(--radius); border: 1px solid var(--line); background: var(--panel-2); color: var(--text); white-space: nowrap; }
+.btn:hover { border-color: #4a5157; }
+.btn:active { transform: translateY(1px); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.btn.primary:hover { background: #f4a633; }
+.btn:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.closed { display: none; padding: 80px 32px; font-size: 18px; color: var(--muted); }
+body.is-closed .top, body.is-closed .layout, body.is-closed .bar { display: none; }
+body.is-closed .closed { display: block; }
+.foot { color: var(--muted); font-size: 12.5px; margin-top: 36px; }
+.keybind { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.keycap { min-width: 64px; padding: 6px 12px; text-align: center; background: var(--panel-2); border: 1px solid var(--line); border-bottom-width: 3px; border-radius: var(--radius); font-family: "Barlow Condensed", sans-serif; font-weight: 600; font-size: 17px; letter-spacing: .05em; }
+.keycap.wait { border-color: var(--accent); color: var(--focus); font-family: "Barlow", sans-serif; font-weight: 400; font-size: 14px; letter-spacing: 0; }
+.keycap.none { color: var(--muted); }
+.keybind .btn { font-size: 14px; padding: 6px 12px; }
+</style>
+</head>
+<body>
+<header class="top">
+  <h1><span class="mark">COTW</span>GoldChallenge</h1>
+  <span class="credit" id="credit"></span>
+</header>
+<div class="layout">
+  <main>
+    <h2 id="title" style="font-size:22px;margin:0 0 6px"></h2>
+    <p class="intro" id="intro"></p>
+    <div id="form"></div>
+    <details class="adv" id="adv"><summary id="advTitle"></summary><div id="formAdv"></div></details>
+    <p class="foot" id="foot"></p>
+  </main>
+  <aside class="side">
+    <div class="head"><h2 id="previewTitle"></h2>
+      <div class="seg row" id="view"><input type="radio" name="view" id="v_zoom" value="zoom" checked><label for="v_zoom" id="l_zoom"></label><input type="radio" name="view" id="v_full" value="full"><label for="v_full" id="l_full"></label></div>
+    </div>
+    <div class="screen"><canvas id="cv"></canvas></div>
+    <p class="note" id="previewNote"></p>
+    <p class="note" id="listNote" hidden></p>
+    <p class="note" id="zoneNote" hidden></p>
+  </aside>
+</div>
+<div class="bar">
+  <span class="status" id="status"></span>
+  <button class="btn" id="reset" type="button"></button>
+  <button class="btn primary" id="save" type="button"></button>
+  <button class="btn" id="close" type="button"></button>
+</div>
+<p class="closed" id="closed"></p>
+
+<script>
+"use strict";
+const api = "api/";
+let data, values = {}, saved = "";
+const $ = id => document.getElementById(id);
+
+fetch(api + "settings").then(r => r.json()).then(d => {
+  data = d;
+  values = Object.assign({}, d.values);
+  saved = JSON.stringify(values);
+  document.documentElement.lang = d.lang;
+  const T = d.text;
+  $("credit").textContent = d.lang === "fr" ? "conçu par Laink" : "designed by Laink";
+  $("title").textContent = T.page_title;
+  $("intro").textContent = T.page_intro;
+  $("advTitle").textContent = T.page_advanced;
+  $("previewTitle").textContent = T.page_preview;
+  $("previewNote").textContent = T.page_preview_note;
+  $("l_zoom").textContent = T.page_zoom;
+  $("listNote").textContent = T.page_list_note;
+  $("zoneNote").textContent = T.page_zone_note;
+  $("l_full").textContent = T.page_full;
+  $("v_zoom").onchange = $("v_full").onchange = draw;
+  $("save").textContent = T.page_save;
+  $("reset").textContent = T.page_reset;
+  $("close").textContent = T.page_close;
+  $("closed").textContent = T.page_closed;
+  $("foot").textContent = "COTWGoldChallenge " + d.version;
+  build();
+  updateLimits();
+  draw();
+});
+
+function build() {
+  const groups = {};
+  for (const f of data.fields) {
+    const k = (f.advanced ? "a:" : "b:") + f.group;
+    (groups[k] = groups[k] || []).push(f);
+  }
+  for (const [k, fields] of Object.entries(groups)) {
+    const sec = document.createElement("section");
+    const banner = document.createElement("span");
+    banner.className = "banner";
+    banner.textContent = data.groups[fields[0].group];
+    const box = document.createElement("div");
+    box.className = "group";
+    fields.forEach(f => box.appendChild(control(f)));
+    sec.append(banner, box);
+    $(k.startsWith("a:") ? "formAdv" : "form").appendChild(sec);
+  }
+}
+
+function control(f) {
+  const el = document.createElement("div");
+  el.className = "field";
+  const id = "f_" + f.key;
+  const label = document.createElement(f.kind === "choice" ? "span" : "label");
+  label.className = "label";
+  label.textContent = f.label;
+  if (f.kind !== "choice") label.htmlFor = id;
+  let input;
+  const v = values[f.key] ?? f.default;
+
+  if (f.kind === "bool") {
+    el.classList.add("inline");
+    input = document.createElement("span");
+    input.className = "toggle";
+    input.innerHTML = '<input type="checkbox" id="' + id + '"><span></span>';
+    const cb = input.querySelector("input");
+    cb.checked = v === "1";
+    cb.onchange = () => set(f.key, cb.checked ? "1" : "0");
+  } else if (f.kind === "choice") {
+    input = document.createElement("div");
+    const short = f.choices.every(c => c.label.length <= 12);
+    input.className = "seg" + (short ? " row" : "");
+    input.setAttribute("role", "radiogroup");
+    f.choices.forEach((c, i) => {
+      const rid = id + "_" + i;
+      const r = document.createElement("input");
+      r.type = "radio"; r.name = id; r.id = rid; r.value = c.value; r.checked = c.value === v;
+      r.onchange = () => set(f.key, c.value);
+      const l = document.createElement("label");
+      l.htmlFor = rid; l.textContent = c.label;
+      input.append(r, l);
+    });
+  } else if (f.kind === "range") {
+    input = document.createElement("div");
+    input.className = "range";
+    input.innerHTML = '<input type="range" id="' + id + '"><output></output>';
+    const r = input.querySelector("input"), o = input.querySelector("output");
+    Object.assign(r, { min: f.min, max: f.max, step: f.step, value: v });
+    const pct = () => f.max <= 1 ? Math.round(r.value * 100) + " %" : "×" + Number(r.value).toFixed(2);
+    o.textContent = pct();
+    r.oninput = () => { o.textContent = pct(); set(f.key, r.value); };
+  } else if (f.kind === "slider") {
+    input = document.createElement("div");
+    input.className = "range";
+    input.innerHTML = '<input type="range" aria-label="' + f.label + '"><input type="number" id="' + id + '">';
+    const [r, n] = input.querySelectorAll("input");
+    for (const e of [r, n]) Object.assign(e, { min: f.min, max: f.max, step: f.step || 1, value: v });
+    sliders[f.key] = { r, n };
+    const apply = v => {
+      const L = limits()[f.key];
+      v = Math.min(L.max, Math.max(L.min, Number(v)));
+      r.value = v; if (Number(n.value) !== v) n.value = v;
+      set(f.key, String(v));
+    };
+    r.oninput = () => apply(r.value);
+    n.oninput = () => { if (n.value !== "") apply(n.value); };
+    n.onblur = () => { n.value = values[f.key]; };
+  } else if (f.kind === "number") {
+    el.classList.add("inline");
+    input = document.createElement("input");
+    Object.assign(input, { type: "number", id, min: f.min, max: f.max, step: f.step || 1, value: v });
+    input.oninput = () => { if (input.value !== "") set(f.key, input.value); };
+  } else if (f.kind === "date") {
+    input = dateControl(f, id, v);
+  } else if (f.kind === "key") {
+    input = keyControl(f, id, v);
+  } else {
+    input = document.createElement("input");
+    Object.assign(input, { type: "text", id, value: v, spellcheck: false });
+    input.oninput = () => set(f.key, input.value);
+  }
+  el.append(label, input);
+  if (f.help) {
+    const h = document.createElement("div");
+    h.className = "help";
+    h.textContent = f.help;
+    el.appendChild(h);
+  }
+  return el;
+}
+
+// Key binding: the next key or mouse button pressed. The browser's keyCode is the Windows virtual-key
+// code the program watches. Stored as "code:name", "0" for none.
+function keyControl(f, id, v) {
+  const T = data.text;
+  const wrap = document.createElement("div");
+  wrap.className = "keybind";
+  const cap = document.createElement("span");
+  cap.className = "keycap";
+  const change = document.createElement("button");
+  change.type = "button"; change.className = "btn"; change.id = id; change.textContent = T.page_key_set;
+  const clear = document.createElement("button");
+  clear.type = "button"; clear.className = "btn"; clear.textContent = T.page_key_clear;
+  const show = val => {
+    const name = String(val || "").includes(":") ? val.slice(val.indexOf(":") + 1) : (val && val !== "0" ? val : "");
+    cap.className = "keycap" + (name ? "" : " none");
+    cap.textContent = name || T.page_key_none;
+  };
+  let stop = null;
+  const done = val => {
+    if (stop) stop();
+    stop = null;
+    if (val !== undefined) set(f.key, val);
+    show(values[f.key] ?? f.default);
+  };
+  change.onclick = () => {
+    if (stop) return;
+    cap.className = "keycap wait";
+    cap.textContent = T.page_key_wait;
+    const key = e => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (e.key === "Escape") return done();
+      if (!e.keyCode || e.keyCode === 229) return;
+      done(e.keyCode + ":" + keyName(e));
+    };
+    const mouse = e => {
+      if (e.button < 1 || e.button > 4) return; // left and right buttons stay for the page
+      e.preventDefault();
+      const vk = { 1: 4, 3: 5, 4: 6 }[e.button];
+      if (vk) done(vk + ":" + T.page_mouse + " " + { 1: 3, 3: 4, 4: 5 }[e.button]);
+    };
+    const block = e => e.preventDefault();
+    setTimeout(() => {
+      window.addEventListener("keydown", key, true);
+      window.addEventListener("mousedown", mouse, true);
+      window.addEventListener("auxclick", block, true);
+    }, 0);
+    stop = () => {
+      window.removeEventListener("keydown", key, true);
+      window.removeEventListener("mousedown", mouse, true);
+      setTimeout(() => window.removeEventListener("auxclick", block, true), 300);
+    };
+  };
+  clear.onclick = () => done("0");
+  show(v);
+  wrap.append(cap, change, clear);
+  return wrap;
+}
+
+function keyName(e) {
+  const c = e.code || "";
+  if (/^Key[A-Z]$/.test(c) || /^Digit\d$/.test(c)) return e.key.length === 1 ? e.key.toUpperCase() : c.slice(-1);
+  if (/^F\d+$/.test(c)) return c;
+  if (c.startsWith("Numpad")) return "Num " + (c.slice(6) || e.key);
+  if (e.key && e.key.length === 1 && e.key !== " ") return e.key.toUpperCase();
+  return c || e.key;
+}
+
+function dateControl(f, id, v) {
+  const T = data.text;
+  const wrap = document.createElement("div");
+  wrap.className = "date";
+  const [d, t] = (v || "").split(" ");
+  wrap.innerHTML =
+    '<input type="date" id="' + id + '">' +
+    '<span class="time"><input type="time" id="' + id + '_t"> ' + T.page_time + '</span>' +
+    '<label class="check"><input type="checkbox" id="' + id + '_all"> ' + T.page_always + '</label>';
+  const di = wrap.querySelector("#" + id), ti = wrap.querySelector("#" + id + "_t"), all = wrap.querySelector("#" + id + "_all");
+  di.value = d || "";
+  ti.value = t || "";
+  all.checked = !d;
+  const sync = () => {
+    wrap.classList.toggle("off", all.checked);
+    if (all.checked) set(f.key, "");
+    else if (di.value) set(f.key, di.value + (ti.value ? " " + ti.value : ""));
+  };
+  all.onchange = () => {
+    if (!all.checked && !di.value) di.value = new Date().toISOString().slice(0, 10);
+    sync();
+  };
+  di.onchange = ti.onchange = () => { if (di.value) all.checked = false; sync(); };
+  wrap.classList.toggle("off", all.checked);
+  return wrap;
+}
+
+function set(k, v) {
+  values[k] = v;
+  refresh();
+}
+
+function refresh() {
+  updateLimits();
+  const dirty = JSON.stringify(values) !== saved;
+  const s = $("status");
+  s.className = "status" + (dirty ? " dirty" : "");
+  s.textContent = dirty ? data.text.page_unsaved : "";
+  draw();
+}
+
+$("save").onclick = () => {
+  fetch(api + "settings", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(values) })
+    .then(r => r.ok ? r.json() : r.text().then(t => Promise.reject(t)))
+    .then(() => {
+      saved = JSON.stringify(values);
+      $("status").className = "status ok";
+      $("status").textContent = data.text.page_saved;
+    })
+    .catch(e => { $("status").className = "status err"; $("status").textContent = String(e); });
+};
+$("reset").onclick = () => {
+  for (const f of data.fields) values[f.key] = f.default;
+  $("form").innerHTML = ""; $("formAdv").innerHTML = "";
+  build();
+  refresh();
+};
+$("close").onclick = () => {
+  fetch(api + "close", { method: "POST" }).finally(() => {
+    document.body.classList.add("is-closed");
+    window.close();
+  });
+};
+
+/* ---- preview: the wall on a 1280x720 HUD, as the mod lays it out ---- */
+const TINT = ["#9EE9FF", "#FFC42E", "#F2F2F2", "#E69240"];
+// classes of the 126 species, in wall order (counts per class as in the game)
+const CLASSES = [].concat(...[[1, 27], [2, 16], [3, 18], [4, 17], [5, 16], [6, 12], [7, 8], [8, 6], [9, 6]].map(([c, n]) => Array(n).fill(c)));
+// a fixed, irregular set of results so the preview looks like a real hunting log
+const RANKS = CLASSES.map((c, i) => { const r = (i * 37 + c * 11) % 17; return r < 3 ? 0 : r < 9 ? 1 : r < 11 ? 2 : r < 12 ? 3 : 4; });
+const HERE = CLASSES.map((c, i) => (i * 7 + 3) % 11 < 2);
+// the species of Vurhonga Savanna, for the reserve wall
+const RESERVE = {
+  fr: ["CANARD SIFFLEUR", "LIÈVRE DES BUISSONS", "CHACAL À FLANCS RAYÉS", "SPRINGBOK", "PETIT KOUDOU", "PHACOCHÈRE", "GEMSBOK", "GNOU BLEU", "BUFFLE DU CAP", "LION"],
+  en: ["EURASIAN WIGEON", "SCRUB HARE", "SIDE-STRIPED JACKAL", "SPRINGBOK", "LESSER KUDU", "WARTHOG", "GEMSBOK", "BLUE WILDEBEEST", "CAPE BUFFALO", "LION"],
+  ranks: [4, 1, 1, 1, 2, 4, 1, 3, 4, 0],
+  cls: [1, 1, 2, 3, 4, 4, 6, 6, 9, 9],
+};
+const MEDAL = ["#8FE3FF", "#FFC42E", "#E2E2E2", "#C87A35"];
+
+function hexPath(g, x, y, w, h) {
+  const p = [[.5, 0], [1, .25], [1, .75], [.5, 1], [0, .75], [0, .25]];
+  g.beginPath();
+  p.forEach(([a, b], i) => i ? g.lineTo(x + w * a, y + h * b) : g.moveTo(x + w * a, y + h * b));
+  g.closePath();
+}
+
+function num(k) { const v = parseFloat(values[k]); return isNaN(v) ? parseFloat(data.fields.find(f => f.key === k).default) : v; }
+
+function draw() {
+  if (!data) return;
+  const cv = $("cv"), box = cv.getBoundingClientRect();
+  const dpr = window.devicePixelRatio || 1;
+  cv.width = Math.round(box.width * dpr); cv.height = Math.round(box.height * dpr);
+  const g = cv.getContext("2d");
+  g.setTransform(1, 0, 0, 1, 0, 0);
+  g.clearRect(0, 0, cv.width, cv.height);
+  if (values.wall === "0") return;
+  const list = isList();
+  const b = list ? gridBounds() : megaBounds();
+  const pos = place(b);
+  $("zoneNote").hidden = pos.x === num("wallX") && pos.y === num("wallY");
+  // zoom: the wall and a margin, keeping the 16:9 frame
+  let vx = 0, vy = 0, vw = 1280;
+  if ($("v_zoom").checked) {
+    vw = Math.min(1280, Math.max(b.w + 60, (b.h + 60) * 16 / 9));
+    vx = Math.max(0, Math.min(1280 - vw, pos.x - 30)); vy = Math.max(0, pos.y - 30);
+  }
+  const s = cv.width / vw;
+  g.setTransform(s, 0, 0, s, -vx * s, -vy * s);
+  drawPanels(g);
+  const target = parseInt(values.tier ?? "1"), higher = values.higher !== "0";
+  const done = r => r === target || (higher && r < target);
+  g.save();
+  g.translate(pos.x, pos.y);
+  if (list) drawGrid(g, done); else drawMega(g);
+  $("listNote").hidden = !(values.wall === "list" && !list);
+  g.restore();
+}
+
+function icon(g, x, y, w, rank, alpha) {
+  const h = w * 1.112;
+  g.globalAlpha = alpha;
+  hexPath(g, x, y, w, h);
+  g.fillStyle = rank < 4 ? TINT[rank] : "#8b9096";
+  g.fill();
+  hexPath(g, x + w * .14, y + h * .14, w * .72, h * .72);
+  g.fillStyle = rank < 4 ? "rgba(30,24,10,.55)" : "rgba(20,22,24,.7)";
+  g.fill();
+  g.globalAlpha = 1;
+}
+
+// top right corner of the HUD, taken by the binoculars and calls panels: the mod moves the wall out of it
+const PANELS = { x: 960, y: 380 };
+
+// position sliders: only the positions that keep the wall on screen and out of the panels corner
+const sliders = {};
+
+function limits() {
+  const b = isList() ? gridBounds() : megaBounds();
+  const xMax = Math.max(0, Math.floor((num("wallY") < PANELS.y ? PANELS.x : 1280) - b.w));
+  const yMin = num("wallX") + b.w > PANELS.x ? PANELS.y : 0;
+  return { wallX: { min: 0, max: xMax }, wallY: { min: yMin, max: Math.max(yMin, Math.floor(720 - b.h)) } };
+}
+
+function updateLimits() {
+  const L = limits();
+  for (const k of ["wallX", "wallY"]) {
+    const sl = sliders[k];
+    if (!sl) continue;
+    for (const e of [sl.r, sl.n]) { e.min = L[k].min; e.max = L[k].max; }
+    const v = Math.min(L[k].max, Math.max(L[k].min, num(k)));
+    if (v !== num(k)) values[k] = String(v);
+    sl.r.value = v;
+    if (document.activeElement !== sl.n) sl.n.value = v;
+  }
+}
+
+function place(b) {
+  let x = num("wallX"), y = num("wallY");
+  if (y < PANELS.y && x + b.w > PANELS.x) {
+    if (PANELS.x - b.w >= 0) x = PANELS.x - b.w; else y = PANELS.y;
+  }
+  return { x, y };
+}
+
+function drawPanels(g) {
+  g.save();
+  g.fillStyle = "rgba(236,154,30,.07)";
+  g.fillRect(PANELS.x, 0, 1280 - PANELS.x, PANELS.y);
+  g.setLineDash([8, 6]); g.lineWidth = 2; g.strokeStyle = "rgba(236,154,30,.55)";
+  g.strokeRect(PANELS.x + 1, 1, 1280 - PANELS.x - 2, PANELS.y - 2);
+  g.fillStyle = "rgba(236,154,30,.8)"; g.font = "600 20px 'Barlow Condensed', sans-serif";
+  g.textAlign = "center"; g.textBaseline = "middle";
+  g.fillText(data.text.page_panels, PANELS.x + (1280 - PANELS.x) / 2, PANELS.y / 2, 1280 - PANELS.x - 20);
+  g.restore();
+}
+
+// list with names: only when the overlay shows one reserve (not in 100% mode with every species)
+function isList() {
+  return values.wall === "list" && !(values.scope !== "reserve" && values.megaWall !== "0");
+}
+
+// medal counted for the challenge
+function doneFn() {
+  const target = parseInt(values.tier ?? "1"), higher = values.higher !== "0";
+  return r => r === target || (higher && r < target);
+}
+
+// species shown with the icons layout: every species (100% mode), or those of the reserve
+function megaSet() {
+  const done = doneFn();
+  if (values.scope !== "reserve" && values.megaWall !== "0") {
+    return { cls: CLASSES, ranks: RANKS, here: HERE, perRow: Math.ceil(126 / Math.max(1, num("megaRows"))),
+      all: 126, done: RANKS.filter(done).length, reserve: false };
+  }
+  const list = reserveList(done);
+  return { cls: list.map(sp => sp.cls), ranks: list.map(sp => sp.rank), here: null, perRow: Math.max(1, num("perRow")),
+    all: RESERVE.ranks.length, done: RESERVE.ranks.filter(done).length, reserve: true };
+}
+
+// icon size, space and class number size: reserve mode scales them to reserveSize, not the gauge
+function iconMetrics(set) {
+  const k = set.reserve ? num("reserveSize") / Math.max(1, num("megaSize")) : 1;
+  return { size: num("megaSize") * k, gap: num("megaGap") * k, cls: num("classSize") * k };
+}
+
+function megaBounds() {
+  const set = megaSet(), M = iconMetrics(set);
+  const size = M.size, gap = M.gap, gs = num("gaugeSize");
+  const h1 = size * 1.112, perRow = set.perRow;
+  let x = 0, maxX = 0, col = 0, last = -1, y = 0;
+  set.cls.forEach(c => {
+    if (col === perRow) { col = 0; x = 0; y += h1 + gap + 3; }
+    if (values.classes !== "0" && c !== last) { x += Math.max(M.cls * .6 + gap, size * .45); last = c; }
+    x += size + gap; maxX = Math.max(maxX, x); col++;
+  });
+  const extra = set.reserve && values.total === "1" ? num("nameSize") * 1.4 : 0;
+  return { w: 6 + gs * 1.2 + 10 + maxX + 14, h: Math.max(6 + y + h1 + 12, 6 + gs * 1.112 + num("nameSize") + extra + 12) + 2 };
+}
+
+function reserveList(done) {
+  const names = RESERVE[data.lang] || RESERVE.en;
+  return names.map((n, i) => ({ name: n, rank: RESERVE.ranks[i], cls: RESERVE.cls[i] })).filter(sp => !(values.missing === "1" && done(sp.rank)));
+}
+
+// icon grid of the reserve wall, as the mod lays it out: class numbers before each class
+// the reserve overlay is laid out at icon size 44, then scaled to iconSize
+const BASE = 44;
+const gridScale = () => num("iconSize") / BASE;
+
+function gridLayout(g, list) {
+  const size = BASE, perRow = Math.max(1, num("perRow")), classes = values.classes === "1";
+  g.font = "400 15px Barlow, sans-serif";
+  const cells = []; let x = 10, y = 8, col = 0, last = -1, maxX = 0;
+  for (const sp of list) {
+    if (col === perRow) { col = 0; x = 10; y += size * 1.112 + 6; }
+    if (classes && sp.cls !== last) { cells.push({ t: sp.cls, x: x + 2, y: y + size * .3 }); x += g.measureText(String(sp.cls)).width + 8; last = sp.cls; }
+    cells.push({ sp, x, y }); x += size + 6; maxX = Math.max(maxX, x); col++;
+  }
+  return { cells, w: maxX + 4, h: list.length ? y + size * 1.112 + 8 : 8 };
+}
+
+function gridBounds() {
+  const n = RESERVE.ranks.length, k = gridScale();
+  if (values.wall === "list") return { w: 320 * k, h: (34 + 8 + n * 36) * k };
+  const L = gridLayout($("cv").getContext("2d"), reserveList(() => false));
+  return { w: Math.max(300, L.w) * k, h: (34 + L.h) * k };
+}
+
+function drawMega(g) {
+  const set = megaSet(), M = iconMetrics(set);
+  const size = M.size, gap = M.gap;
+  const gs = num("gaugeSize"), att = num("attenue"), avant = values.avant !== "0" && !set.reserve;
+  const h1 = size * 1.112, colW = gs * 1.2;
+  const perRow = set.perRow;
+  const n = set.done;
+  // body layout first, for the background size
+  const cells = []; let x = 0, y = 0, col = 0, last = -1, maxX = 0;
+  set.cls.forEach((c, i) => {
+    if (col === perRow) { col = 0; x = 0; y += h1 + gap + 3; }
+    if (values.classes !== "0" && c !== last) { cells.push({ t: c, x, y }); x += Math.max(M.cls * .6 + gap, size * .45); last = c; }
+    cells.push({ i, x, y }); x += size + gap; maxX = Math.max(maxX, x); col++;
+  });
+  // icons and badge column aligned at the top, centre or bottom, as the mod
+  const ns = num("nameSize"), colH = gs * 1.112; // the badge only, not the texts under it
+  const bodyH = set.cls.length ? y + h1 : 0, align = (values.iconsAlign || "auto") === "auto" ? (set.reserve ? "center" : "top") : values.iconsAlign;
+  const shift = align === "top" ? 0 : (colH - bodyH) * (align === "bottom" ? 1 : .5);
+  const bx = 6 + colW + 10, by = 6 + Math.max(0, shift), cy = Math.max(0, -shift);
+  if (values.bg === "1") { g.fillStyle = "rgba(0,0,0," + num("bgAlpha") + ")"; g.fillRect(0, 0, bx + maxX + 6, Math.max(by + y + h1 + 12, cy + 6 + colH + 2 + ns * 1.4 * (set.reserve && values.total === "1" ? 2 : 1) + 12)); }
+  // gauge
+  const gx = 6 + (colW - gs) / 2, gy = 6 + cy, gh = gs * 1.112, pct = Math.round(100 * n / set.all);
+  hexPath(g, gx, gy, gs, gh); g.fillStyle = "rgba(0,0,0,.72)"; g.fill();
+  g.save(); hexPath(g, gx, gy, gs, gh); g.clip(); g.fillStyle = "rgba(255,196,46,.9)"; g.fillRect(gx, gy + gh * (1 - pct / 100), gs, gh); g.restore();
+  g.lineWidth = gs * .025; g.strokeStyle = "#FFC42E"; hexPath(g, gx + gs * .03, gy + gs * .03, gs * .94, gh - gs * .06); g.stroke();
+  g.fillStyle = "#fff"; g.textAlign = "center"; g.textBaseline = "middle";
+  g.font = "600 " + Math.round(gh * .27) + "px Barlow, sans-serif"; g.fillText(pct + "%", gx + gs / 2, gy + gh * .47);
+  g.font = "400 " + Math.round(gh * .13) + "px Barlow, sans-serif"; g.fillText(n + "/" + set.all, gx + gs / 2, gy + gh * .7);
+  g.font = "600 " + num("nameSize") + "px Barlow, sans-serif"; g.fillText(data.lang === "fr" ? "SAVANE DE VURHONGA" : "VURHONGA SAVANNA", 6 + colW / 2, gy + gh + 2 + num("nameSize") * .7, colW);
+  if (set.reserve && values.total === "1") g.fillText((values.totalText || "GLOBAL") + " " + RANKS.filter(doneFn()).length + "/126", 6 + colW / 2, gy + gh + 2 + num("nameSize") * 2.1, colW);
+  // icons
+  g.save(); g.translate(bx, by);
+  for (const c of cells) {
+    if (c.t) { g.fillStyle = "rgba(232,236,242,.8)"; g.font = "600 " + M.cls + "px Barlow, sans-serif"; g.fillText(c.t, c.x + (Math.max(M.cls * .6 + gap, size * .45) - gap) / 2, c.y + h1 / 2); continue; }
+    const here = set.here ? set.here[c.i] : true;
+    const k = avant ? (here ? 1.12 : .9) : 1;
+    const w = size * k, ox = c.x + (size - w) / 2, oy = c.y + (h1 - w * 1.112) / 2;
+    icon(g, ox, oy, w, set.ranks[c.i], avant && !here ? att : 1);
+  }
+  g.restore();
+}
+
+function drawGrid(g, done) {
+  g.save();
+  g.scale(gridScale(), gridScale());
+  drawGridBase(g, done);
+  g.restore();
+}
+
+function drawGridBase(g, done) {
+  const list = reserveList(done), all = RESERVE.ranks.length;
+  const tiers = (values.tiers || "").split(","), target = parseInt(values.tier ?? "1");
+  const got = RESERVE.ranks.filter(done).length;
+  let right = (tiers[target] || "") + " " + got + "/" + all;
+  if (values.missing === "1" && list.length) right += "  \u00b7  " + (values.leftText || "") + " " + list.length;
+  if (values.total === "1") right += "  \u00b7  " + (values.totalText || "GLOBAL") + " " + RANKS.filter(done).length + "/126";
+  const title = data.lang === "fr" ? "SAVANE DE VURHONGA" : "VURHONGA SAVANNA";
+  g.font = "600 20px 'Barlow Condensed', sans-serif";
+  const probe = g.measureText(title + "    " + right).width + 20;
+  let w, h;
+  if (values.wall === "list") {
+    g.font = "400 17px Barlow, sans-serif";
+    const names = Math.max(0, ...list.map(sp => g.measureText(sp.name).width));
+    w = Math.max(320, 50 + names + 90, probe); h = 8 + list.length * 36;
+  } else {
+    var L = gridLayout(g, list);
+    w = Math.max(300, L.w, probe); h = L.h;
+  }
+  g.fillStyle = "#FF9800"; g.fillRect(0, 0, w, 34);
+  g.fillStyle = "rgba(0,0,0,.55)"; g.fillRect(0, 34, w, h);
+  g.fillStyle = "#fff"; g.font = "600 20px 'Barlow Condensed', sans-serif"; g.textBaseline = "middle";
+  g.textAlign = "left"; g.fillText(title, 10, 18);
+  g.textAlign = "right"; g.fillText(right, w - 10, 18);
+  g.textAlign = "left";
+  if (values.wall === "list") {
+    list.forEach((sp, n) => {
+      const y = 34 + 8 + n * 36;
+      icon(g, 10, y, 30, sp.rank, 1);
+      g.fillStyle = "#fff"; g.font = "400 17px Barlow, sans-serif"; g.fillText(sp.name, 50, y + 5 + 11);
+      g.textAlign = "right"; g.font = "600 16px Barlow, sans-serif";
+      g.fillStyle = sp.rank < 4 ? MEDAL[sp.rank] : "#888";
+      g.fillText(sp.rank < 4 ? (tiers[sp.rank] || "") : "\u2013", w - 10, y + 6 + 11);
+      g.textAlign = "left";
+    });
+    return;
+  }
+  const size = BASE;
+  g.textBaseline = "top";
+  for (const c of L.cells) {
+    if (c.sp) { icon(g, c.x, 34 + c.y, size, c.sp.rank, 1); continue; }
+    g.fillStyle = "#E8ECF2"; g.font = "400 15px Barlow, sans-serif"; g.fillText(c.t, c.x, 34 + c.y);
+  }
+  g.textBaseline = "middle";
+}
+
+window.addEventListener("resize", draw);
+document.fonts && document.fonts.ready.then(draw);
+</script>
+</body>
+</html>

@@ -5,22 +5,26 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"strconv"
+	"strings"
 
-	"github.com/Laink/COTWSpottingPlus/internal/game"
-	"github.com/Laink/COTWSpottingPlus/internal/swf"
+	"github.com/Laink/COTWGoldChallenge/internal/game"
+	"github.com/Laink/COTWGoldChallenge/internal/swf"
 )
 
 // GamePath is the patched file, relative to the archives and to dropzone.
 const GamePath = "ui/clue_hud.gfx"
 
 // SpriteName marks the gauge added to the panel.
-const SpriteName = "COTWSpottingPlus"
+const SpriteName = "COTWGoldChallenge"
 
 // Options of the patch.
 type Options struct {
-	Language    string // language code or Steam language name
-	IgnoreSkill bool   // show the gauge without the Sight Spotting level 3 skill
-	Preview     *[3]int
+	Language string // language code or Steam language name
+	Preview  *[3]int
+	Extra    [][]byte // DoABC tags added to the movie
+	Hook     string   // class whose static update(panel, data) ends SetData
+	Icons    bool     // link the species icons to IconClass
 }
 
 // Layout, in panel units (the panel is 352.1 wide).
@@ -36,6 +40,7 @@ const (
 	barX1        = 344.0
 	barY         = 40.0
 	barH         = 10.0
+	skillLine    = 16.0 // added to the body for the missing skill line
 
 	orange  = 0xFF9800
 	black   = 0x000000
@@ -68,13 +73,19 @@ func Apply(original []byte, species map[int]*game.Species, o Options) ([]byte, e
 	if len(code) == 0 || code[len(code)-1] != 0x47 {
 		return nil, errors.New("unexpected end of SetData")
 	}
-	g := &gen{abc: abc, asm: swf.NewAsm(len(code) - 1), locals: body.Locals, regs: map[string]int{}, t: TextFor(o.Language)}
-	g.gauge(species, o.IgnoreSkill, o.Preview != nil)
+	g := &gen{abc: abc, asm: swf.NewAsm(len(code) - 1), locals: body.Locals, regs: map[string]int{}, t: TextFor(o.Language), hook: o.Hook}
+	g.gauge(species, o.Preview != nil)
 	added, err := g.asm.Assemble()
 	if err != nil {
 		return nil, err
 	}
 	abc.Replace(body, append(append([]byte{}, code[:len(code)-1]...), added...), max(body.MaxStack, 12), body.Locals+len(g.regs))
+	if o.Hook != "" {
+		// the wall also shows the species of an animal heard (audio clue panel)
+		if err := hook(abc, "ClueDisplayData.AudioClues", false, "heard", 0, 1); err != nil {
+			return nil, err
+		}
+	}
 	if o.Preview != nil {
 		if err := preview(abc, *o.Preview); err != nil {
 			return nil, err
@@ -85,6 +96,14 @@ func Apply(original []byte, species map[int]*game.Species, o Options) ([]byte, e
 		return nil, err
 	}
 	tag.Data = append(append([]byte{}, tag.Data[:off]...), b...)
+	for _, x := range o.Extra {
+		insertBefore(movie, tag, x)
+	}
+	if o.Icons {
+		if err := linkIcons(movie); err != nil {
+			return nil, err
+		}
+	}
 	return movie.Bytes(), nil
 }
 
@@ -94,6 +113,7 @@ type gen struct {
 	locals int
 	regs   map[string]int
 	t      Text
+	hook   string
 }
 
 func (g *gen) reg(name string) int {
@@ -127,7 +147,7 @@ func (g *gen) pushOperand(r int) {
 	}
 }
 
-func (g *gen) gauge(species map[int]*game.Species, ignoreSkill, trace bool) {
+func (g *gen) gauge(species map[int]*game.Species, trace bool) {
 	t := g.t
 	rSP, rGR, rTF, rFMT := g.reg("SP"), g.reg("GR"), g.reg("TF"), g.reg("FMT")
 
@@ -136,14 +156,15 @@ func (g *gen) gauge(species map[int]*game.Species, ignoreSkill, trace bool) {
 	g.get(rSP).op("iffalse", "no_old")
 	g.op("getlocal0").get(rSP).op("callpropvoid", g.p("removeChild"), 1)
 	g.label("no_old")
-	if !ignoreSkill {
-		g.op("getlocal1").op("getproperty", g.p("animal_score_visible")).op("iffalse", "end")
-	}
 
 	// Trophy range and species scale.
 	rA, rB, rS, rG, rD, rLo0, rHi0 := g.reg("A"), g.reg("B"), g.reg("S"), g.reg("G"), g.reg("D"), g.reg("L0"), g.reg("H0")
 	g.op("getlocal1").op("getproperty", g.p("animal_score_min")).op("convert_d").set(rA)
 	g.op("getlocal1").op("getproperty", g.p("animal_score_max")).op("convert_d").set(rB)
+	// The game truncates the range bounds to integers: the true bounds are up to 1 higher.
+	rB0 := g.reg("B0")
+	g.get(rB).set(rB0)
+	g.get(rB).num(1).op("add").op("convert_d").set(rB)
 	g.op("getlocal1").op("getproperty", g.p("animal_id")).op("convert_i")
 	const ids = 140
 	cases := make([]string, ids)
@@ -164,10 +185,15 @@ func (g *gen) gauge(species map[int]*game.Species, ignoreSkill, trace bool) {
 		for _, v := range []float64{sp.Silver, sp.Gold, sp.Diamond, sp.Min, sp.Max} {
 			g.op("pushdouble", g.abc.Double(v))
 		}
+		// Threshold labels are formatted here: in the game, rounding to 2 decimals gives values like 84.0999.
+		for _, v := range []float64{sp.Silver, sp.Gold, sp.Diamond} {
+			g.op("pushstring", g.s(strings.Replace(strconv.FormatFloat(v, 'f', -1, 64), ".", t.Decimal, 1)))
+		}
 		g.op("jump", "known")
 	}
 	g.label("known")
-	for _, r := range []int{rHi0, rLo0, rD, rG, rS} {
+	rLS, rLG, rLD := g.reg("LS"), g.reg("LG"), g.reg("LD")
+	for _, r := range []int{rLD, rLG, rLS, rHi0, rLo0, rD, rG, rS} {
 		g.set(r)
 	}
 
@@ -183,6 +209,20 @@ func (g *gen) gauge(species map[int]*game.Species, ignoreSkill, trace bool) {
 	chance(rPS, rS)
 	chance(rPG, rG)
 	chance(rPD, rD)
+	if g.hook != "" {
+		// The mod class refines the estimate with the weight and the game's estimation rules when it
+		// can: {pS, pG, pD: chances of silver, gold, diamond; lo, hi: score range}, or null.
+		rE := g.reg("E")
+		g.op("getlex", g.abc.Name(g.hook)).op("getlocal1").op("callproperty", g.p("estimate"), 1).op("coerce_a").set(rE)
+		g.get(rE).op("iffalse", "est_none")
+		for _, f := range []struct {
+			name string
+			r    int
+		}{{"pS", rPS}, {"pG", rPG}, {"pD", rPD}, {"lo", rA}, {"hi", rB}} {
+			g.get(rE).op("getproperty", g.p(f.name)).op("convert_d").set(f.r)
+		}
+		g.label("est_none")
+	}
 	percent := func(r int) {
 		g.op("getlex", g.p("Math")).get(r).num(100).op("multiply").op("pushdouble", g.abc.Double(0.5)).op("add")
 		g.op("callproperty", g.p("floor"), 1).op("pushstring", g.s(t.Percent)).op("add")
@@ -193,6 +233,14 @@ func (g *gen) gauge(species map[int]*game.Species, ignoreSkill, trace bool) {
 	setStr := func(r int, s string) { g.op("pushstring", g.s(s)).set(r) }
 	setStr(rSub, "")
 	g.num(0).set(rOK).num(0).set(rNone)
+	// Without the Spotting Knowledge skill (level 3) the game gives no trophy estimate: the scale is
+	// drawn without the animal's range.
+	rSkill := g.reg("SK")
+	g.op("getlocal1").op("getproperty", g.p("animal_score_visible")).op("convert_b").set(rSkill)
+	g.get(rSkill).op("iftrue", "v_skill")
+	setStr(rV, "")
+	g.num(1).set(rNone).op("jump", "v_end")
+	g.label("v_skill")
 	diamondDetail := func() {
 		l := g.asm.NewLabel()
 		g.get(rPD).num(0).op("ifngt", l)
@@ -201,7 +249,7 @@ func (g *gen) gauge(species map[int]*game.Species, ignoreSkill, trace bool) {
 		g.op("add").op("coerce_s").set(rSub)
 		g.label(l)
 	}
-	g.get(rB).num(0).op("ifgt", "v_pos")
+	g.get(rB0).num(0).op("ifgt", "v_pos")
 	setStr(rV, t.NoTrophy)
 	g.num(1).set(rNone).op("jump", "v_end")
 	g.label("v_pos")
@@ -270,7 +318,11 @@ func (g *gen) gauge(species map[int]*game.Species, ignoreSkill, trace bool) {
 	}
 	c := func(v float64) func() { return func() { g.num(v) } }
 	rect(orange, 1, c(0), c(0), c(panelWidth), c(bannerHeight))
-	rect(black, 0.65, c(0), c(bannerHeight), c(panelWidth), c(bodyHeight))
+	rect(black, 0.65, c(0), c(bannerHeight), c(panelWidth), func() {
+		l := g.asm.NewLabel()
+		g.num(bodyHeight).get(rSkill).op("iftrue", l).num(skillLine).op("add")
+		g.label(l)
+	})
 
 	// Scale segments. Negative operands are constants: -v-1.
 	x0, x1 := -int(barX0)-1, -int(barX1)-1
@@ -349,6 +401,9 @@ func (g *gen) gauge(species map[int]*game.Species, ignoreSkill, trace bool) {
 	g.get(rVerdict).get(rX).op("setproperty", g.p("x"))
 	rIX := g.reg("IX")
 	g.get(rX).num(20).op("subtract").set(rIX)
+	g.get(rSkill).op("iftrue", "ix_ok")
+	g.get(rX).set(rIX) // no check or cross without the skill
+	g.label("ix_ok")
 	g.get(rIX).num(6.5+4).get(rTitle).op("getproperty", g.p("width")).op("add").op("ifnlt", "title_ok")
 	g.get(rTitle).op("pushfalse").op("setproperty", g.p("visible"))
 	g.label("title_ok")
@@ -365,6 +420,7 @@ func (g *gen) gauge(species map[int]*game.Species, ignoreSkill, trace bool) {
 			g.get(rGI).get(rIX).num(pt[0]).op("add").num(pt[1]).op("callpropvoid", g.p("lineTo"), 2)
 		}
 	}
+	g.get(rSkill).op("iffalse", "icon_ok")
 	g.get(rOK).op("iffalse", "cross")
 	stroke([][2]float64{{3, 15.5}, {7, 19.5}, {14.5, 10.5}})
 	g.op("jump", "icon_ok")
@@ -394,16 +450,9 @@ func (g *gen) gauge(species map[int]*game.Species, ignoreSkill, trace bool) {
 	}
 
 	// Threshold values under the segment boundaries.
-	for _, pr := range [][2]int{{rXS, rS}, {rXG, rG}, {rXD, rD}} {
-		rx, rv := pr[0], pr[1]
-		text("tf_difficulty", func() {
-			g.op("pushstring", g.s(""))
-			g.op("getlex", g.p("Math")).get(rv).num(100).op("multiply").op("pushdouble", g.abc.Double(0.5)).op("add")
-			g.op("callproperty", g.p("floor"), 1).num(100).op("divide").op("add")
-			if t.Decimal != "." {
-				g.op("pushstring", g.s(".")).op("pushstring", g.s(t.Decimal)).op("callproperty", g.p("replace"), 2)
-			}
-		}, 12, white, barY+barH+17)
+	for _, pr := range [][2]int{{rXS, rLS}, {rXG, rLG}, {rXD, rLD}} {
+		rx, rl := pr[0], pr[1]
+		text("tf_difficulty", func() { g.get(rl) }, 12, white, barY+barH+17)
 		setX(func() {
 			g.op("getlex", g.p("Math")).num(2)
 			g.op("getlex", g.p("Math")).get(rx)
@@ -416,14 +465,33 @@ func (g *gen) gauge(species map[int]*game.Species, ignoreSkill, trace bool) {
 		})
 	}
 
+	// Name of the missing skill, under the scale.
+	g.get(rSkill).op("iftrue", "skill_ok")
+	text("tf_difficulty", func() {
+		g.op("pushstring", g.s(t.SkillMissing))
+		if g.hook != "" {
+			g.op("getlex", g.abc.Name(g.hook)).op("getlocal0").op("callproperty", g.p("skillName"), 1)
+		} else {
+			g.op("pushstring", g.s(SkillName))
+		}
+		g.op("add")
+	}, 13, white, barY+barH+32)
+	g.get(rTF).op("pushfalse").op("setproperty", g.p("wordWrap"))
+	g.get(rTF).get(rTF).op("getproperty", g.p("textWidth")).num(6).op("add").op("setproperty", g.p("width"))
+	setX(c(barX0))
+	g.label("skill_ok")
+
 	g.op("getlocal0").get(rSP).op("callpropvoid", g.p("addChild"), 1)
 	if trace {
-		g.op("findpropstrict", g.p("trace")).op("pushstring", g.s("COTWSPOTTINGPLUS ")).get(rV).op("add")
+		g.op("findpropstrict", g.p("trace")).op("pushstring", g.s("COTWGOLDCHALLENGE ")).get(rV).op("add")
 		g.op("pushstring", g.s(" | ")).op("add").get(rSub).op("add").op("callpropvoid", g.p("trace"), 1)
 	}
 	g.op("jump", "end")
 	g.label("unknown")
 	g.label("end")
+	if g.hook != "" {
+		g.op("getlex", g.p(g.hook)).op("getlocal0").op("getlocal1").op("callpropvoid", g.p("update"), 2)
+	}
 	g.op("returnvoid")
 }
 

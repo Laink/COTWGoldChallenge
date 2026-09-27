@@ -9,7 +9,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/Laink/COTWSpottingPlus/internal/apex"
+	"github.com/Laink/COTWGoldChallenge/internal/apex"
 )
 
 // RTPC field hashes.
@@ -26,19 +26,40 @@ const (
 	pActive       = 0xbaace199
 	pGeneration   = 0x7d6f07cc
 	pXMLFile      = 0xba5330a0
+	pWeaponClass  = 0x27808d4a
+	pTrophyType   = 0x3cb71423
+	pGender       = 0x69e88c57 // "gender"
+	pWeightMin    = 0x87ea42c8 // "weight_min"
+	pWeightMax    = 0x29f241f4 // "weight_max"
+	pScoreDev     = 0xac99ddc9 // "score_deviation"
 )
+
+// Dist is one scoring distribution of a species: the weight and score ranges of one gender,
+// of the regular animals or of the Great Ones.
+type Dist struct {
+	Gender   int // 0 male, 1 female
+	GreatOne bool
+	WMin     float64
+	WMax     float64
+	SMin     float64
+	SMax     float64
+	Dev      float64 // score deviation, as a fraction of the score range
+}
 
 // Species holds the trophy scale of one species.
 type Species struct {
 	Key     string  // engine name, e.g. "red_fox"
 	NameKey string  // localisation key, e.g. "animal_redfox_name"
 	Icon    int     // animal_id sent to the HUD
+	Class   int     // hunting class, 1 to 9
 	Min     float64 // lowest possible trophy score
 	Max     float64 // highest possible trophy score
 	Silver  float64
 	Gold    float64
 	Diamond float64
 	TruRACS bool
+	Weight  bool // the trophy score follows the weight
+	Dists   []Dist
 }
 
 func name(n *apex.Node) string {
@@ -100,6 +121,12 @@ func LoadSpecies(a *apex.Archives, progress func(step string, done, total int)) 
 		}
 		s := &Species{Key: name(sp), Icon: int(icon), Min: math.Inf(1), Max: math.Inf(-1)}
 		s.NameKey, _ = sp.Props[pNameKey].(string)
+		if c, ok := sp.Props[pWeaponClass].(uint32); ok {
+			s.Class = int(c)
+		}
+		if t, _ := sp.Props[pTrophyType].(string); t == "harvest_trophy_type_weight" {
+			s.Weight = true
+		}
 		var sets []antlerSet
 		for _, c := range sp.Children {
 			if name(c) != "ScoringSettings" {
@@ -107,7 +134,17 @@ func LoadSpecies(a *apex.Archives, progress func(step string, done, total int)) 
 			}
 			for _, sc := range c.Children {
 				if mx, ok := f64(sc.Props[pTrophyMax]); ok {
-					if g, _ := sc.Props[pGreatOne].(uint32); g != 0 || mx <= 0 {
+					g, _ := sc.Props[pGreatOne].(uint32)
+					d := Dist{GreatOne: g != 0, SMax: mx}
+					d.SMin, _ = f64(sc.Props[pTrophyMin])
+					d.WMin, _ = f64(sc.Props[pWeightMin])
+					d.WMax, _ = f64(sc.Props[pWeightMax])
+					d.Dev, _ = f64(sc.Props[pScoreDev])
+					if gd, ok := sc.Props[pGender].(uint32); ok {
+						d.Gender = int(gd)
+					}
+					s.Dists = append(s.Dists, d)
+					if g != 0 || mx <= 0 {
 						continue
 					}
 					mn, _ := f64(sc.Props[pTrophyMin])

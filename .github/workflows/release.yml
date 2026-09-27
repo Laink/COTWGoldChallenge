@@ -14,9 +14,9 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
-          go-version: "1.22"
+          go-version: "1.24"
       - run: go vet ./...
       - run: ./build.sh ${{ github.ref_name }}
       - uses: softprops/action-gh-release@v2
         with:
-          files: dist/COTWSpottingPlus.exe
+          files: dist/COTWGoldChallenge.exe

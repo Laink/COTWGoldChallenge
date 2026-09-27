@@ -1,3 +1,3 @@
-module github.com/Laink/COTWSpottingPlus
+module github.com/Laink/COTWGoldChallenge
 
-go 1.22
+go 1.24

@@ -136,3 +136,41 @@ func (m *Movie) ABCTag() (*Tag, int, error) {
 	}
 	return found, p + 1, nil
 }
+
+// ABCTags returns the DoABC tags of a movie.
+func (m *Movie) ABCTags() []*Tag {
+	var out []*Tag
+	for _, t := range m.Tags {
+		if t.Code == 82 || t.Code == 72 {
+			out = append(out, t)
+		}
+	}
+	return out
+}
+
+// LoadTags decodes a sequence of tags, up to and including End.
+func LoadTags(b []byte) ([]*Tag, error) {
+	var out []*Tag
+	for p := 0; p+2 <= len(b); {
+		cl := binary.LittleEndian.Uint16(b[p:])
+		code, ln, h := int(cl>>6), int(cl&0x3f), 2
+		if ln == 0x3f {
+			if p+6 > len(b) {
+				return nil, errors.New("truncated tag")
+			}
+			ln, h = int(binary.LittleEndian.Uint32(b[p+2:])), 6
+		}
+		if p+h+ln > len(b) {
+			return nil, errors.New("truncated tag")
+		}
+		out = append(out, &Tag{code, b[p+h : p+h+ln], b[p : p+h]})
+		p += h + ln
+		if code == 0 {
+			break
+		}
+	}
+	return out, nil
+}
+
+// Encode returns the tag with its header.
+func (t *Tag) Encode() []byte { return t.bytes() }
