@@ -13,6 +13,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"time"
 
@@ -137,12 +138,33 @@ func main() {
 }
 
 func run(ui *UI, gameDir, lang string, uninstall, edit, shortcut, yes bool, out, previewData string) error {
+	all := game.LocateAll(gameDir)
 	inst, ok := game.Locate(gameDir)
+	if ok {
+		inst = all[0]
+	}
 	*ui = uiFor(inst.Language)
 	fmt.Printf("COTWGoldChallenge %s — %s\n", version, ui.t("credit"))
 	fmt.Println(strings.Repeat("-", 78))
 	fmt.Println(wrap(ui.t("preamble"), 78))
 	fmt.Println()
+	// Steam and Epic Games versions on the same computer: the player chooses.
+	if len(all) > 1 && !yes {
+		fmt.Println(ui.t("several"))
+		for i, in := range all {
+			store := "Steam"
+			if in.Epic {
+				store = "Epic Games"
+			}
+			fmt.Printf("  %d  %s: %s\n", i+1, store, in.Dir)
+		}
+		fmt.Print(ui.t("choice_game"))
+		if n, err := strconv.Atoi(strings.TrimSpace(readLine())); err == nil && n >= 1 && n <= len(all) {
+			inst = all[n-1]
+		}
+		*ui = uiFor(inst.Language)
+		fmt.Println()
+	}
 	if !ok {
 		if yes {
 			return errors.New(ui.t("not_found"))
@@ -161,7 +183,11 @@ func run(ui *UI, gameDir, lang string, uninstall, edit, shortcut, yes bool, out,
 		}
 		*ui = uiFor(inst.Language)
 	}
-	fmt.Println(ui.t("game"), inst.Dir)
+	if inst.Epic {
+		fmt.Println(ui.t("game"), inst.Dir, "(Epic Games)")
+	} else {
+		fmt.Println(ui.t("game"), inst.Dir)
+	}
 	if lang == "" {
 		lang = inst.Language
 	}
@@ -169,6 +195,7 @@ func run(ui *UI, gameDir, lang string, uninstall, edit, shortcut, yes bool, out,
 	fmt.Println(ui.t("language"), code)
 
 	dropzone := filepath.Join(inst.Dir, "dropzone")
+	linkSaves(ui, inst, dropzone)
 	if uninstall {
 		return remove(ui, dropzone)
 	}
@@ -370,7 +397,7 @@ func doInstall(ui *UI, inst *game.Install, dropzone, code string, yes bool, out,
 		return writeError(ui, err)
 	}
 	// The hunting log is read through a link to the save folder.
-	if saves, err := game.SavesDir(); err != nil {
+	if saves, err := game.SavesDir(inst.Epic); err != nil {
 		fmt.Println(ui.t("no_saves"))
 	} else if err := game.LinkSaves(dropzone, saves); err != nil {
 		fmt.Println(ui.t("no_link"), err)
@@ -383,7 +410,7 @@ func doInstall(ui *UI, inst *game.Install, dropzone, code string, yes bool, out,
 	}
 	fmt.Println()
 	fmt.Println(ui.t("installed"))
-	launchOptions(ui, inst.Steam)
+	launchOptions(ui, inst)
 	if first {
 		fmt.Println()
 		fmt.Println(wrap(ui.t("first_run"), 78))
@@ -391,24 +418,57 @@ func doInstall(ui *UI, inst *game.Install, dropzone, code string, yes bool, out,
 	return nil
 }
 
+// linkSaves makes the link to the save folder when the mod is installed without it: the save
+// folder did not exist yet at installation (game never played), or was moved.
+func linkSaves(ui *UI, inst *game.Install, dropzone string) {
+	if _, err := os.Stat(filepath.Join(dropzone, marker)); err != nil {
+		return
+	}
+	if _, err := os.Stat(filepath.Join(dropzone, game.SavesLink, "hunting_log_adf")); err == nil {
+		return
+	}
+	saves, err := game.SavesDir(inst.Epic)
+	if err != nil {
+		return
+	}
+	if err := game.LinkSaves(dropzone, saves); err == nil {
+		fmt.Println(ui.t("saves_linked"))
+	}
+}
+
 // moviePaths lists the game movies replaced by the mod, relative to dropzone.
 func moviePaths() []string {
 	return append([]string{patch.GamePath, patch.HUDPath}, patch.MenuPaths...)
 }
 
-func launchOptions(ui *UI, steam string) {
-	for _, o := range game.CurrentLaunchOptions(steam) {
-		if game.HasDropzone(o) {
-			fmt.Println(ui.t("launch_ok"))
-			fmt.Println(ui.t("restart"))
-			return
+func launchOptions(ui *UI, inst *game.Install) {
+	set := false
+	if inst.Epic {
+		set = game.EpicLaunchOptionsSet()
+	} else {
+		for _, o := range game.CurrentLaunchOptions(inst.Steam) {
+			set = set || game.HasDropzone(o)
 		}
 	}
+	if set {
+		if inst.Epic {
+			fmt.Println(ui.t("launch_ok_epic"))
+		} else {
+			fmt.Println(ui.t("launch_ok"))
+		}
+		fmt.Println(ui.t("restart"))
+		return
+	}
 	fmt.Println()
-	fmt.Println(ui.t("launch_todo"))
+	if inst.Epic {
+		fmt.Println(wrap(ui.t("launch_todo_epic"), 78))
+	} else {
+		fmt.Println(ui.t("launch_todo"))
+	}
 	fmt.Println()
 	fmt.Println("    " + game.LaunchOptions)
 	fmt.Println()
+	fmt.Println(ui.t("whole_line"))
 	if copyClipboard(game.LaunchOptions) {
 		fmt.Println(ui.t("copied"))
 	}

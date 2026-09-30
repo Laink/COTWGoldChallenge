@@ -28,20 +28,21 @@ but not where the animal stands, with the line "Skill missing: Spotting Knowledg
 1. Download `COTWGoldChallenge.exe` from the [Releases](../../releases) page.
 2. Run it and choose **1**. It finds the game, reads the trophy data from your game files and
    installs the mod in the game's `dropzone` folder.
-3. In Steam, right-click the game > Properties > Launch options, and paste:
+3. Add these launch options. In Steam: right-click the game > Properties > Launch options. In the
+   Epic Games Launcher: Library > "..." on the game > Manage > Launch options.
 
    ```
    --vfs-fs dropzone --vfs-archive archives_win64 --vfs-fs .
    ```
 
-   COTWGoldChallenge tells you if this is already set.
+   Copy the whole line, with the final dot. COTWGoldChallenge tells you if this is already set.
 4. Start the game.
 
 When you run it, COTWGoldChallenge tells you whether the mod is installed, and whether it must be
 installed again: after a game update, or with a new version of the program. Choose **2** to
 uninstall; your settings are kept.
 
-Steam version only (the `dropzone` folder is not supported by other versions).
+Steam and Epic Games Store versions. The Microsoft Store / Game Pass version cannot load mods.
 
 ## Use
 
@@ -69,7 +70,7 @@ diamonds count too. Great Ones count as diamonds.
   `ui/main_menu.gfx`, `ui/change_reserve.gfx`) are read from your game and patched on your
   computer. No game file is distributed. The files of another mod that replaces them are kept as
   `.bak` and come back when you uninstall.
-- Game texts follow the game language set in Steam: English, French, German, Spanish, Italian,
+- Game texts follow the game language (set in Steam, or the Epic Games Launcher language): English, French, German, Spanish, Italian,
   Polish, Russian, Portuguese, Czech, Japanese, Chinese and Korean. Other languages use English.
   The program and the settings page are in English or French.
 

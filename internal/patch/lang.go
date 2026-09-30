@@ -86,6 +86,18 @@ func LanguageFor(name string) string {
 	if c, ok := steamLanguages[n]; ok {
 		return c
 	}
+	// language codes with a region, as Windows and the Epic Games Launcher give them ("fr-FR")
+	switch {
+	case strings.HasPrefix(n, "zh"):
+		if strings.Contains(n, "hant") || strings.HasSuffix(n, "-tw") || strings.HasSuffix(n, "-hk") || strings.HasSuffix(n, "-mo") {
+			return "zh-hant"
+		}
+		return "zh-hans"
+	case len(n) > 2 && (n[2] == '-' || n[2] == '_'):
+		if _, ok := texts[n[:2]]; ok {
+			return n[:2]
+		}
+	}
 	return "en"
 }
 

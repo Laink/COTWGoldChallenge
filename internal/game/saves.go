@@ -16,12 +16,15 @@ import (
 const SavesLink = "cotwgc_saves"
 
 // SavesDir returns the save folder of the profile played last: Documents\Avalanche Studios\
-// COTW\Saves\<Steam id>.
-func SavesDir() (string, error) {
+// COTW\Saves\<Steam id>, or Documents\Avalanche Studios\Epic Games Store\COTW\Saves\<Epic id>.
+func SavesDir(epic bool) (string, error) {
 	var best string
 	var bestTime time.Time
 	for _, docs := range documents() {
 		root := filepath.Join(docs, "Avalanche Studios", "COTW", "Saves")
+		if epic {
+			root = filepath.Join(docs, "Avalanche Studios", "Epic Games Store", "COTW", "Saves")
+		}
 		dirs, err := os.ReadDir(root)
 		if err != nil {
 			continue

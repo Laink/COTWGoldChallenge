@@ -1,6 +1,10 @@
 package main
 
-import "strings"
+import (
+	"strings"
+
+	"github.com/Laink/COTWGoldChallenge/internal/patch"
+)
 
 // UI holds the program messages in one language.
 type UI struct{ m map[string]string }
@@ -13,7 +17,7 @@ func (u UI) t(k string) string {
 }
 
 func uiFor(steamLanguage string) UI {
-	if strings.EqualFold(steamLanguage, "french") {
+	if patch.LanguageFor(steamLanguage) == "fr" {
 		return UI{messages["fr"]}
 	}
 	return UI{messages["en"]}
@@ -54,13 +58,19 @@ var messages = map[string]map[string]string{
 		"species":           "%d species.",
 		"patch_failed":      "this game version is not supported",
 		"other_mod":         "Another mod already replaces %s. Its files will be kept as .bak and come back if you uninstall.",
-		"no_saves":          "Your save folder was not found: play the game once, then install again, for the overlay to see your harvests.",
+		"no_saves":          "Your save folder was not found: play the game once, then run COTWGoldChallenge again, for the overlay to see your harvests.",
 		"no_link":           "The link to your save folder could not be made:",
 		"installed":         "Installed.",
 		"launch_ok":         "The Steam launch options already load mods.",
 		"restart":           "Restart the game to see the mod.",
 		"first_run":         "First installation: the settings (choice 3) and the overlay key (choice 4) are in the menu below, and every time you run COTWGoldChallenge.",
 		"launch_todo":       "In Steam: right-click the game > Properties > Launch options, and paste:",
+		"launch_ok_epic":    "The Epic Games Launcher already loads mods.",
+		"whole_line":        "Copy the whole line, with the final dot: it is part of the options.",
+		"saves_linked":      "Your save folder is now linked: the overlay sees your harvests.",
+		"several":           "The game is installed several times:",
+		"choice_game":       "Which one? (Enter for 1): ",
+		"launch_todo_epic":  "In the Epic Games Launcher: Library > \"...\" on theHunter: Call of the Wild > Manage > Launch options (on older launchers: Settings > Manage games > the game > Additional command line arguments), and paste:",
 		"copied":            "(copied to the clipboard)",
 		"not_installed":     "COTWGoldChallenge is not installed.",
 		"removed":           "Removed.",
@@ -126,13 +136,19 @@ var messages = map[string]map[string]string{
 		"species":           "%d espèces.",
 		"patch_failed":      "cette version du jeu n'est pas prise en charge",
 		"other_mod":         "Un autre mod remplace déjà %s. Ses fichiers seront conservés en .bak et reviendront si vous désinstallez.",
-		"no_saves":          "Votre dossier de sauvegarde est introuvable : lancez une partie une fois, puis réinstallez, pour que l'overlay voie vos prises.",
+		"no_saves":          "Votre dossier de sauvegarde est introuvable : lancez une partie une fois, puis relancez COTWGoldChallenge, pour que l'overlay voie vos prises.",
 		"no_link":           "Le lien vers votre dossier de sauvegarde n'a pas pu être créé :",
 		"installed":         "Installé.",
 		"launch_ok":         "Les options de lancement Steam chargent déjà les mods.",
 		"restart":           "Relancez le jeu pour voir le mod.",
 		"first_run":         "Première installation : les réglages (choix 3) et la touche de l'overlay (choix 4) sont dans le menu ci-dessous, et à chaque lancement de COTWGoldChallenge.",
 		"launch_todo":       "Dans Steam : clic droit sur le jeu > Propriétés > Options de lancement, et collez :",
+		"launch_ok_epic":    "Le lanceur Epic Games charge déjà les mods.",
+		"whole_line":        "Copiez la ligne entière, point final compris : il fait partie des options.",
+		"saves_linked":      "Votre dossier de sauvegarde est maintenant relié : l'overlay voit vos prises.",
+		"several":           "Le jeu est installé plusieurs fois :",
+		"choice_game":       "Lequel ? (Entrée pour 1) : ",
+		"launch_todo_epic":  "Dans le lanceur Epic Games : Bibliothèque > « ... » sur theHunter: Call of the Wild > Gérer > Options de lancement (anciens lanceurs : Paramètres > Gérer les jeux > le jeu > Arguments de ligne de commande supplémentaires), et collez :",
 		"copied":            "(copié dans le presse-papiers)",
 		"not_installed":     "COTWGoldChallenge n'est pas installé.",
 		"removed":           "Désinstallé.",

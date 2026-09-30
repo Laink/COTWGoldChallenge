@@ -18,8 +18,9 @@ const LaunchOptions = "--vfs-fs dropzone --vfs-archive archives_win64 --vfs-fs .
 // Install describes a game installation.
 type Install struct {
 	Dir      string // ...\steamapps\common\theHunterCotW
-	Language string // Steam language name, e.g. "french"
+	Language string // Steam language name ("french") or language code ("fr-FR")
 	Steam    string // Steam root folder, if known
+	Epic     bool   // installed with the Epic Games Launcher
 }
 
 // IsGameDir reports whether dir contains the game.
@@ -28,13 +29,32 @@ func IsGameDir(dir string) bool {
 	return err == nil
 }
 
-// Locate finds the game: explicit folder, program folder, then Steam libraries.
+// Locate finds the game: explicit folder, program folder, Steam libraries, then Epic Games.
 func Locate(explicit string) (*Install, bool) {
-	steam := steamRoot()
-	var cands []string
-	if explicit != "" {
-		cands = append(cands, explicit)
+	all := LocateAll(explicit)
+	if len(all) == 0 {
+		return &Install{Steam: steamRoot()}, false
 	}
+	return all[0], true
+}
+
+// LocateAll lists the game installations, in the order of Locate: a player can have the Steam
+// and the Epic Games versions. An explicit folder that holds the game is the only one listed.
+func LocateAll(explicit string) []*Install {
+	steam := steamRoot()
+	newInstall := func(dir string) *Install {
+		in := &Install{Dir: dir, Steam: steam}
+		in.Language = manifestLanguage(dir)
+		if in.Language == "" && isEpicDir(dir) {
+			in.Epic = true
+			in.Language = epicLanguage()
+		}
+		return in
+	}
+	if explicit != "" && IsGameDir(explicit) {
+		return []*Install{newInstall(explicit)}
+	}
+	var cands []string
 	if exe, err := os.Executable(); err == nil {
 		cands = append(cands, filepath.Dir(exe))
 	}
@@ -44,14 +64,18 @@ func Locate(explicit string) (*Install, bool) {
 	for _, lib := range libraries(steam) {
 		cands = append(cands, filepath.Join(lib, "steamapps", "common", "theHunterCotW"))
 	}
+	cands = append(cands, epicDirs()...)
+	var out []*Install
+	seen := map[string]bool{}
 	for _, c := range cands {
-		if IsGameDir(c) {
-			in := &Install{Dir: c, Steam: steam}
-			in.Language = manifestLanguage(c)
-			return in, true
+		key := strings.ToLower(filepath.Clean(c))
+		if seen[key] || !IsGameDir(c) {
+			continue
 		}
+		seen[key] = true
+		out = append(out, newInstall(c))
 	}
-	return &Install{Steam: steam}, false
+	return out
 }
 
 func steamRoot() string {
