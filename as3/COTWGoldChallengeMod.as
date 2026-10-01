@@ -33,10 +33,11 @@ package {
 		private static const WORLD_URL:String = "/cotwgc_saves/reserveworlddata_adf";
 		public static const HUD_NAME:String = "COTWGoldChallengeHud";
 		private static const RELOAD_MS:int = 2000;
-		// cotwgc_toggle.txt, written by COTWGoldChallenge.exe while its shortcut runs: "<beat> <0|1>".
-		// The beat changes every second; when it stops, the program is closed and the wall shows again.
+		// cotwgc_toggle.txt, written by COTWGoldChallenge.exe while its shortcut runs:
+		// "<beat> <shown 0|1> <names held 0|1>". The beat changes every second; when it stops, the
+		// program is closed and the overlay shows again.
 		private static const TOGGLE_URL:String = "cotwgc_toggle.txt";
-		private static const TOGGLE_MS:int = 250;
+		private static const TOGGLE_MS:int = 100;
 		private static const TOGGLE_STALE_MS:int = 3000;
 		private static const COLORS:Array = [0x8FE3FF, 0xFFC42E, 0xE2E2E2, 0xC87A35]; // rank 0 diamond .. 3 bronze
 
@@ -91,6 +92,7 @@ package {
 		private static var menuKey:String;
 		private static var menuIndex:int;
 		private static var wallOff:Boolean; // hidden with the shortcut
+		private static var namesOn:Boolean; // names key held: missing species listed with their names
 		private static var nextToggle:int;
 		private static var toggleBeat:String;
 		private static var toggleSeen:int;
@@ -907,17 +909,22 @@ package {
 					trace("COTWGC toggle " + f.join("/") + " off " + wallOff);
 				}
 				toggleLoader = null;
-				if (f.length == 2 && f[0] != toggleBeat) {
+				if (f.length >= 2 && f[0] != toggleBeat) {
 					toggleBeat = f[0];
 					toggleSeen = now;
 					if (wallOff != (f[1] == "0")) {
 						wallOff = !wallOff;
 						wallChanged = true;
 					}
+					if (namesOn != (f[2] == "1")) {
+						namesOn = !namesOn;
+						wallChanged = true;
+					}
 				}
 			}
-			if (wallOff && now - toggleSeen > TOGGLE_STALE_MS) {
+			if ((wallOff || namesOn) && now - toggleSeen > TOGGLE_STALE_MS) {
 				wallOff = false;
+				namesOn = false;
 				wallChanged = true;
 			}
 			if (now < nextToggle || (toggleLoader && now < toggleStarted + TOGGLE_STALE_MS)) {
@@ -941,7 +948,7 @@ package {
 		// Species wall of the current reserve, in the HUD. Settings:
 		// wall=grid|list|0, wallX, wallY, iconSize, perRow, classes=0|1, sort=reserve|class, missing=0|1.
 		private static function showHud():void {
-			var key:String = reserve + "/" + version + "/" + status + "/" + reservesDone + "/" + settingsVersion + "/" + speciesDone + "/" + wallOff;
+			var key:String = reserve + "/" + version + "/" + status + "/" + reservesDone + "/" + settingsVersion + "/" + speciesDone + "/" + wallOff + "/" + namesOn;
 			var root:* = hud;
 			var old:Sprite = root.getChildByName(HUD_NAME) as Sprite;
 			if (old && key == hudKey) {
@@ -955,7 +962,11 @@ package {
 			recording = true;
 			var built:Array = null;
 			try {
-				built = wallOff ? null : buildWall(findTextField(root), 0);
+				if (namesOn) {
+					built = speciesDone ? buildReserve(findTextField(root), currentReserve(), scopeReserve(), 0, "list", true, true) : null;
+				} else {
+					built = wallOff ? null : buildWall(findTextField(root), 0);
+				}
 			} finally {
 				recording = false;
 			}
@@ -1154,7 +1165,8 @@ package {
 		}
 
 		// Wall of one reserve, with the harvests made anywhere or only in that reserve (inReserve >= 0).
-		private static function buildReserve(src:TextField, number:int, inReserve:int, aim:uint, mode:String, onHud:Boolean):Array {
+		// onlyMissing: the missing species only, whatever the settings (names key held).
+		private static function buildReserve(src:TextField, number:int, inReserve:int, aim:uint, mode:String, onHud:Boolean, onlyMissing:Boolean = false):Array {
 			var r:Object = reserves[number];
 			if (!r) {
 				return null;
@@ -1166,6 +1178,7 @@ package {
 			var size:Number = 44;
 			var perRow:int = int(settings.perRow || 10);
 			var classes:Boolean = settings.classes == "1";
+			var missing:Boolean = onlyMissing || settings.missing == "1";
 
 			var list:Array = [];
 			var done:int = 0;
@@ -1177,7 +1190,7 @@ package {
 				if (ok) {
 					done++;
 				}
-				if (!(ok && settings.missing == "1")) {
+				if (!(ok && missing)) {
 					list.push({hash: h, rank: rank, go: bst[2], ok: ok, cls: clsByHash[h], order: i});
 				}
 			}
@@ -1190,7 +1203,7 @@ package {
 			wall.mouseEnabled = false;
 			wall.mouseChildren = false;
 			var right:String = tiers[target] + " " + done + "/" + r.hashes.length;
-			if (settings.missing == "1" && list.length) {
+			if (missing && list.length) {
 				right += "  ·  " + (settings.leftText || "left") + " " + list.length;
 			}
 			if (settings.total == "1") {
@@ -1644,7 +1657,7 @@ package {
 			if (!overlay) {
 				return;
 			}
-			var shown:Boolean = cluePanel && cluePanel.stage && visibleChain(cluePanel) && !wallOff;
+			var shown:Boolean = cluePanel && cluePanel.stage && visibleChain(cluePanel) && !wallOff && !namesOn;
 			if (!grow || grow.ic.parent == null) {
 				overlay.visible = shown;
 				return;

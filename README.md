@@ -17,7 +17,8 @@ harvest, and whether the animal in your binoculars can make it.
 - **Reserve selection**: the challenge progress of each reserve, in the main menu and in the
   change reserve screen.
 - **Settings page** in your browser, applied in the game within a few seconds.
-- **Overlay key** to show or hide the overlay while you play.
+- **Overlay keys**: one shows or hides the overlay (F8), another, held, lists the missing species
+  of the reserve with their names (F9).
 
 **The gauge needs the Spotting Knowledge skill, level 3.** The mod reads the trophy estimate this
 skill gives through binoculars. Without it, the gauge shows the medal thresholds of the species
@@ -50,9 +51,9 @@ The menu stays open after each choice:
 
 - **3 Settings** opens the settings page: challenge start (a date, or all time), mode (reserve or
   100%), medal to get, whether better medals count, the look and position of the overlay, and the
-  overlay key. Your settings can be made before installing.
-- **4 Overlay key** turns the key on or off. Keep the window open while you play: the key works
-  while the game window is in front, and the game still receives it.
+  overlay keys. Your settings can be made before installing.
+- **4 Overlay keys** turns the keys on or off. Keep the window open while you play: the keys work
+  while the game window is in front, and the game still receives them.
 - **Enter** quits.
 
 By default the challenge starts on the day of the installation, in reserve mode, for gold, and

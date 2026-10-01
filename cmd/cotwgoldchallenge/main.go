@@ -226,14 +226,14 @@ func run(ui *UI, gameDir, lang string, uninstall, edit, shortcut, yes bool, out,
 	for {
 		fmt.Println()
 		fmt.Println(ui.t("menu"))
-		on, key := shortcutOn()
+		on, key, names := shortcutOn()
 		switch {
 		case !on:
 			fmt.Println(ui.t("menu_key_off"))
-		case key == "":
+		case key == "" && names == "":
 			fmt.Println(ui.t("menu_key_nokey"))
 		default:
-			fmt.Printf(ui.t("menu_key_on")+"\n", key)
+			fmt.Printf(ui.t("menu_key_on")+"\n", keysLabel(ui, key, names))
 		}
 		if on {
 			fmt.Println(ui.t("menu_quit_on"))
@@ -258,13 +258,13 @@ func run(ui *UI, gameDir, lang string, uninstall, edit, shortcut, yes bool, out,
 		case "4":
 			if err = toggleShortcut(ui, dropzone, settingsLang(code)); err == nil {
 				fmt.Println()
-				switch on, key := shortcutOn(); {
+				switch on, key, names := shortcutOn(); {
 				case !on:
 					fmt.Println(ui.t("key_off"))
-				case key == "":
+				case key == "" && names == "":
 					fmt.Println(ui.t("key_nokey"))
 				default:
-					fmt.Printf(ui.t("key_on")+"\n", key)
+					fmt.Printf(ui.t("key_on")+"\n", keysLabel(ui, key, names))
 				}
 			}
 		default:
