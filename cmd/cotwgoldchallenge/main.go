@@ -123,12 +123,13 @@ func main() {
 	yes := flag.Bool("yes", false, "no questions")
 	out := flag.String("out", "", "write the patched file here instead of installing it")
 	previewData := flag.String("preview", "", "debug: id,min,max test data shown outside the game")
+	play := flag.Bool("play", false, "start the game too (desktop shortcut)")
 	flag.Parse()
 	setupConsole()
 	checkRelease()
 
 	ui := uiFor("")
-	err := run(&ui, *gameDir, *lang, *uninstall, *edit, *shortcut, *yes, *out, *previewData)
+	err := run(&ui, *gameDir, *lang, *uninstall, *edit, *shortcut, *play, *yes, *out, *previewData)
 	if err == errQuit {
 		return
 	}
@@ -146,7 +147,7 @@ func main() {
 	}
 }
 
-func run(ui *UI, gameDir, lang string, uninstall, edit, shortcut, yes bool, out, previewData string) error {
+func run(ui *UI, gameDir, lang string, uninstall, edit, shortcut, play, yes bool, out, previewData string) error {
 	all := game.LocateAll(gameDir)
 	inst, ok := game.Locate(gameDir)
 	if ok {
@@ -234,6 +235,11 @@ func run(ui *UI, gameDir, lang string, uninstall, edit, shortcut, yes bool, out,
 	defer stopShortcut()
 	update := printState(ui, inst, dropzone)
 	startKeys(dropzone, settingsLang(code))
+	if play {
+		if err := launchGame(ui, inst); err != nil {
+			fmt.Println(ui.t("error"), err)
+		}
+	}
 	for {
 		printBanner(ui)
 		fmt.Println()
@@ -255,6 +261,12 @@ func run(ui *UI, gameDir, lang string, uninstall, edit, shortcut, yes bool, out,
 		default:
 			fmt.Printf(ui.t("menu_key_on")+"\n", label)
 		}
+		if game.Running() {
+			fmt.Println(ui.t("menu_play_on"))
+		} else {
+			fmt.Println(ui.t("menu_play"))
+		}
+		fmt.Println(ui.t("menu_link"))
 		if on {
 			fmt.Println(ui.t("menu_quit_on"))
 		} else {
@@ -290,6 +302,10 @@ func run(ui *UI, gameDir, lang string, uninstall, edit, shortcut, yes bool, out,
 					fmt.Printf(ui.t("key_on")+"\n", label)
 				}
 			}
+		case "5":
+			err = launchGame(ui, inst)
+		case "6":
+			err = desktopShortcut(ui, inst)
 		default:
 			return errQuit
 		}
@@ -298,6 +314,35 @@ func run(ui *UI, gameDir, lang string, uninstall, edit, shortcut, yes bool, out,
 			fmt.Println(ui.t("error"), err)
 		}
 	}
+}
+
+// launchGame starts the game through its store, unless it runs already.
+func launchGame(ui *UI, inst *game.Install) error {
+	fmt.Println()
+	if game.Running() {
+		fmt.Println(ui.t("play_running"))
+		return nil
+	}
+	if err := game.Launch(inst); err != nil {
+		return err
+	}
+	fmt.Println(ui.t("play_started"))
+	return nil
+}
+
+// desktopShortcut makes a desktop shortcut that opens this program and starts the game.
+func desktopShortcut(ui *UI, inst *game.Install) error {
+	exe, err := os.Executable()
+	if err != nil {
+		return err
+	}
+	name := ui.t("shortcut_name")
+	if err := game.Shortcut(name, exe, `-play -game "`+inst.Dir+`"`, inst); err != nil {
+		return err
+	}
+	fmt.Println()
+	fmt.Println(wrap(fmt.Sprintf(ui.t("shortcut_done"), name), 78))
+	return nil
 }
 
 // errQuit ends the program from the menu, without asking for Enter again.

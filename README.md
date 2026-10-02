@@ -64,6 +64,9 @@ The menu stays open after each choice:
   - The **Stats** tab sums up the harvests recorded: medals, reserves, most harvested species
     and last harvests.
 - **4 Overlay keys** turns the keys off or on again. They start with the program.
+- **5 Launch the game**, through Steam or the Epic Games Launcher, with your launch options.
+- **6 Desktop shortcut**: opens COTWGoldChallenge and launches the game together, so that the
+  program is never forgotten.
 - **Enter** quits.
 
 By default the challenge starts on the day of the installation, in reserve mode, for gold, and
@@ -89,7 +92,7 @@ diamonds count too. Great Ones count as diamonds.
 ## Command line
 
 ```
-COTWGoldChallenge.exe [-game folder] [-lang fr] [-uninstall] [-settings] [-shortcut] [-yes]
+COTWGoldChallenge.exe [-game folder] [-lang fr] [-uninstall] [-settings] [-shortcut] [-play] [-yes]
 ```
 
 ## Build

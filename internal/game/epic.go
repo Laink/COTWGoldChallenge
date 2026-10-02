@@ -12,8 +12,18 @@ import (
 
 // Epic Games Store version: the same game, found through the launcher's install manifests.
 
-// epicDirs lists the game folders installed with the Epic Games Launcher.
-func epicDirs() []string {
+// epicManifest is an install manifest of the Epic Games Launcher.
+type epicManifest struct {
+	DisplayName      string
+	InstallLocation  string
+	LaunchExecutable string
+	AppName          string
+	CatalogNamespace string
+	CatalogItemID    string `json:"CatalogItemId"`
+}
+
+// epicManifests lists the manifests of the game installed with the Epic Games Launcher.
+func epicManifests() []epicManifest {
 	if runtime.GOOS != "windows" {
 		return nil
 	}
@@ -21,25 +31,33 @@ func epicDirs() []string {
 	if data == "" {
 		data = `C:\ProgramData`
 	}
-	var out []string
+	var out []epicManifest
 	files, _ := filepath.Glob(filepath.Join(data, "Epic", "EpicGamesLauncher", "Data", "Manifests", "*.item"))
 	for _, f := range files {
 		b, err := os.ReadFile(f)
 		if err != nil {
 			continue
 		}
-		var m struct {
-			DisplayName      string
-			InstallLocation  string
-			LaunchExecutable string
-		}
+		var m epicManifest
 		if json.Unmarshal(b, &m) != nil || m.InstallLocation == "" {
 			continue
 		}
 		if strings.Contains(strings.ToLower(m.LaunchExecutable), "thehuntercotw") ||
 			strings.Contains(strings.ToLower(m.DisplayName), "call of the wild") {
-			out = append(out, filepath.Clean(m.InstallLocation))
+			out = append(out, m)
 		}
+	}
+	return out
+}
+
+// epicDirs lists the game folders installed with the Epic Games Launcher.
+func epicDirs() []string {
+	if runtime.GOOS != "windows" {
+		return nil
+	}
+	var out []string
+	for _, m := range epicManifests() {
+		out = append(out, filepath.Clean(m.InstallLocation))
 	}
 	// default folder, if the manifests cannot be read (Manifests\Pending holds unfinished installs)
 	return append(out, `C:\Program Files\Epic Games\theHunterCallOfTheWild`)
