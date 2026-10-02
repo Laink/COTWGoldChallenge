@@ -17,8 +17,9 @@ harvest, and whether the animal in your binoculars can make it.
 - **Reserve selection**: the challenge progress of each reserve, in the main menu and in the
   change reserve screen.
 - **Settings page** in your browser, applied in the game within a few seconds.
-- **Overlay keys**: one shows or hides the overlay (F8), another, held, lists the missing species
-  of the reserve with their names (F9).
+- **Overlay keys**: one shows or hides the overlay (F8); held, one lists the missing species of
+  the reserve with their names (F9), another shows the species outside the reserve at full
+  opacity in 100% mode (F10).
 
 **The gauge needs the Spotting Knowledge skill, level 3.** The mod reads the trophy estimate this
 skill gives through binoculars. Without it, the gauge shows the medal thresholds of the species
@@ -47,13 +48,22 @@ Steam and Epic Games Store versions. The Microsoft Store / Game Pass version can
 
 ## Use
 
+**Keep the COTWGoldChallenge window open while you play** (you can minimize it). The game keeps
+only the 5 best harvests of each species and the last 20: while it runs, COTWGoldChallenge
+records every harvest, so that older trophies do not disappear from the overlay. It also runs the
+overlay keys, which work while the game window is in front; the game still receives them.
+
 The menu stays open after each choice:
 
-- **3 Settings** opens the settings page: challenge start (a date, or all time), mode (reserve or
+- **3 Settings and trophies** opens the settings page: challenge start (a date, or all time), mode (reserve or
   100%), medal to get, whether better medals count, the look and position of the overlay, and the
-  overlay keys. Your settings can be made before installing.
-- **4 Overlay keys** turns the keys on or off. Keep the window open while you play: the keys work
-  while the game window is in front, and the game still receives them.
+  overlay keys. Your settings can be made before installing. Changes are saved as you make them.
+  - The **Trophies** tab shows the progress of each reserve, the missing species with the
+    reserves where they live, and, reserve by reserve, the medals found in your harvests. It lets
+    you add by hand the trophies the game no longer keeps.
+  - The **Stats** tab sums up the harvests recorded: medals, reserves, most harvested species
+    and last harvests.
+- **4 Overlay keys** turns the keys off or on again. They start with the program.
 - **Enter** quits.
 
 By default the challenge starts on the day of the installation, in reserve mode, for gold, and
@@ -66,7 +76,8 @@ diamonds count too. Great Ones count as diamonds.
 - The chances of the gauge follow the game's own estimation rules: the score range and the weight
   shown by the skill, and how scores are spread in each species.
 - The overlay reads your hunting log in your save folder, through a link made in `dropzone`. It
-  never writes to your saves.
+  never writes to your saves. The harvests recorded by the program and the trophies added by hand
+  are in `dropzone/ui/cotwgc_history.txt`, kept when you uninstall.
 - The movies of the game that the mod changes (`ui/clue_hud.gfx`, `ui/hud.gfx`,
   `ui/main_menu.gfx`, `ui/change_reserve.gfx`) are read from your game and patched on your
   computer. No game file is distributed. The files of another mod that replaces them are kept as

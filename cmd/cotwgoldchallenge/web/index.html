@@ -106,8 +106,8 @@ details.adv[open] > summary { color: var(--text); }
 .side .head h2 { margin: 0; }
 .side .seg.row label { min-width: 0; padding: 4px 10px; font-size: 14px; }
 .bar .status.dirty { color: var(--focus); }
-.bar .status.ok { color: #9fcf8a; }
-.bar .status.err { color: #f08a7a; }
+.status.ok { color: #9fcf8a; }
+.status.err { color: #f08a7a; }
 .btn { cursor: pointer; font-size: 16px; padding: 9px 18px; border-radius: var(--radius); border: 1px solid var(--line); background: var(--panel-2); color: var(--text); white-space: nowrap; }
 .btn:hover { border-color: #4a5157; }
 .btn:active { transform: translateY(1px); }
@@ -123,13 +123,129 @@ body.is-closed .closed { display: block; }
 .keycap.wait { border-color: var(--accent); color: var(--focus); font-family: "Barlow", sans-serif; font-weight: 400; font-size: 14px; letter-spacing: 0; }
 .keycap.none { color: var(--muted); }
 .keybind .btn { font-size: 14px; padding: 6px 12px; }
+
+/* tabs */
+.tabs { display: flex; gap: 4px; margin-left: 24px; align-self: flex-end; }
+@media (max-width: 700px) { .top { flex-wrap: wrap; } .tabs { margin-left: -16px; flex-basis: 100%; } }
+.tab { cursor: pointer; font-family: "Barlow Condensed", sans-serif; font-weight: 600; font-size: 17px; letter-spacing: .05em; text-transform: uppercase; padding: 6px 16px; background: none; border: 1px solid transparent; border-bottom: 3px solid transparent; color: var(--muted); }
+.tab:hover { color: var(--text); }
+.tab.on { color: var(--text); border-bottom-color: var(--accent); }
+.tab:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+body:not([data-tab="settings"]) .layout, body:not([data-tab="settings"]) .bar { display: none; }
+.troph, .stats { display: none; padding: 28px 32px 80px; max-width: 1100px; }
+body[data-tab="trophies"] .troph, body[data-tab="stats"] .stats { display: block; }
+body.is-closed .troph, body.is-closed .stats { display: none; }
+h3.sub { font-family: "Barlow Condensed", sans-serif; font-weight: 600; font-size: 19px; letter-spacing: .04em; text-transform: uppercase; margin: 30px 0 4px; }
+
+/* overview: one card per reserve */
+.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 8px; margin: 12px 0 14px; }
+.card { text-align: left; cursor: pointer; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 12px; color: var(--text); font: inherit; }
+.card:hover { border-color: #4a5157; }
+.card.on { border-color: var(--accent); }
+.card.global { background: #2a2621; cursor: default; }
+.card:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.card .cn { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-weight: 600; line-height: 1.3; min-height: 2.6em; }
+.card .cv { color: var(--muted); font-size: 13.5px; font-variant-numeric: tabular-nums; }
+.meter { height: 4px; background: var(--panel-2); border-radius: 2px; margin-top: 8px; overflow: hidden; }
+.meter i { display: block; height: 100%; background: var(--accent); border-radius: 2px; }
+.card.done .meter i { background: #9fcf8a; }
+details.miss { margin: 0 0 8px; }
+details.miss > summary { font-size: 16px; padding: 10px 0; }
+.mrow { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; padding: 8px 14px; border-top: 1px solid var(--line); }
+.mrow:first-child { border-top: 0; }
+.mrow .name { font-weight: 600; margin-right: 4px; }
+.chip { cursor: pointer; font: inherit; font-size: 13px; padding: 2px 8px; background: var(--panel-2); border: 1px solid var(--line); border-radius: var(--radius); color: var(--text); }
+.chip:hover { border-color: var(--accent); }
+.chip:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+
+/* statistics */
+.tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; margin: 16px 0 26px; }
+.tile { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; }
+.tile b { display: block; font: 600 32px/1.1 "Barlow Condensed", sans-serif; font-variant-numeric: tabular-nums; }
+.tile span { color: var(--muted); font-size: 13.5px; }
+.sgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 0 24px; }
+.hrow { display: grid; grid-template-columns: minmax(0, 160px) minmax(0, 1fr) 64px; gap: 10px; align-items: center; padding: 6px 14px; border-top: 1px solid var(--line); }
+.hrow:first-child { border-top: 0; }
+.wide .hrow { grid-template-columns: minmax(0, 320px) minmax(0, 1fr) 64px; }
+.hrow .hl { display: flex; align-items: center; gap: 8px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.hrow .ht i { display: block; height: 10px; min-width: 2px; border-radius: 0 4px 4px 0; background: var(--accent); }
+.hrow .hv { text-align: right; color: var(--muted); font-size: 13.5px; font-variant-numeric: tabular-nums; }
+.sw { flex: none; width: 12px; height: 13px; clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%); }
+table.recent { width: 100%; border-collapse: collapse; font-size: 14px; }
+table.recent th { text-align: left; color: var(--muted); font-weight: 400; font-size: 13px; text-transform: uppercase; letter-spacing: .05em; padding: 8px 14px; }
+table.recent td { padding: 7px 14px; border-top: 1px solid var(--line); }
+table.recent .num { text-align: right; font-variant-numeric: tabular-nums; }
+.tablewrap { overflow-x: auto; }
+@media (max-width: 760px) { .stats { padding-left: 16px; padding-right: 16px; } .hrow { grid-template-columns: minmax(0, 110px) minmax(0, 1fr) 52px; } }
+.keep { background: #3a2c14; border-left: 4px solid var(--accent); padding: 10px 14px; margin: 0 0 18px; font-weight: 600; }
+.tbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; margin: 18px 0 6px; }
+.tbar label { display: flex; align-items: center; gap: 10px; font-weight: 600; }
+select { font: inherit; color: var(--text); background: var(--panel-2); border: 1px solid var(--line); border-radius: var(--radius); padding: 7px 10px; color-scheme: dark; }
+select:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.muted { color: var(--muted); font-size: 13.5px; }
+/* one grid for the header and every row, so that the columns line up */
+.ttable { display: grid; grid-template-columns: 30px minmax(0, 1fr) 170px auto; column-gap: 14px; }
+.ttable > .thead, .ttable > .group, .ttable .trow { grid-column: 1 / -1; display: grid; grid-template-columns: subgrid; align-items: center; }
+.thead, .trow { padding: 6px 14px; }
+.thead { color: var(--muted); font-size: 13px; text-transform: uppercase; letter-spacing: .05em; }
+.trow { border-top: 1px solid var(--line); }
+.trow:first-child { border-top: 0; }
+.icon { display: inline-block; flex: none; width: 30px; height: 33px; }
+.icon svg { width: 100%; height: 100%; display: block; }
+.mrow .icon, .hl .icon, table.recent .icon { width: 22px; height: 24px; vertical-align: middle; }
+table.recent .icon { margin-right: 8px; }
+.hex { display: inline-block; flex: none; width: 26px; height: 29px; clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%); background: #8b9096; }
+.trow .name { font-weight: 600; }
+.trow .cls { color: var(--muted); font-weight: 400; font-size: 13px; margin-left: 6px; }
+.trow .det { font-size: 14px; }
+.trow .seg.row label { min-width: 0; padding: 4px 9px; font-size: 14px; }
+.trow .seg input:disabled + label { opacity: .3; cursor: default; }
+.trow .seg input:disabled + label:hover { border-color: var(--line); }
+@media (max-width: 760px) { .thead { display: none !important; } .ttable { grid-template-columns: 30px minmax(0, 1fr); row-gap: 0; } .trow { row-gap: 6px; } .trow .det, .trow .seg { grid-column: 2; } .troph { padding-left: 16px; padding-right: 16px; } }
 </style>
 </head>
-<body>
+<body data-tab="settings">
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <filter id="tint0" color-interpolation-filters="sRGB"><feColorMatrix values=".62 0 0 0 0 0 .914 0 0 0 0 0 1 0 0 0 0 0 1 0"/></filter>
+  <filter id="tint1" color-interpolation-filters="sRGB"><feColorMatrix values="1 0 0 0 0 0 .769 0 0 0 0 0 .18 0 0 0 0 0 1 0"/></filter>
+  <filter id="tint2" color-interpolation-filters="sRGB"><feColorMatrix values=".949 0 0 0 0 0 .949 0 0 0 0 0 .949 0 0 0 0 0 1 0"/></filter>
+  <filter id="tint3" color-interpolation-filters="sRGB"><feColorMatrix values=".902 0 0 0 0 0 .573 0 0 0 0 0 .251 0 0 0 0 0 1 0"/></filter>
+  <filter id="tint4" color-interpolation-filters="sRGB"><feColorMatrix values=".706 0 0 0 0 0 .706 0 0 0 0 0 .706 0 0 0 0 0 .7 0"/></filter>
+</svg>
 <header class="top">
   <h1><span class="mark">COTW</span>GoldChallenge</h1>
   <span class="credit" id="credit"></span>
+  <nav class="tabs" role="tablist"><button class="tab on" id="tabSettings" type="button" role="tab"></button><button class="tab" id="tabTrophies" type="button" role="tab"></button><button class="tab" id="tabStats" type="button" role="tab"></button></nav>
 </header>
+<div class="troph" id="troph">
+  <h2 id="tTitle" style="font-size:22px;margin:0 0 12px"></h2>
+  <p class="keep" id="tKeep"></p>
+  <p class="intro" id="tIntro" style="max-width:80ch"></p>
+  <h3 class="sub" id="oTitle"></h3>
+  <p class="muted" id="tMode"></p>
+  <div class="cards" id="oCards"></div>
+  <details class="adv miss" id="oMissing"><summary id="oMissTitle"></summary><div class="group" id="oMissList" style="border-top:1px solid var(--line)"></div></details>
+  <h3 class="sub" id="tDetail"></h3>
+  <div class="tbar"><label><span id="tResLabel"></span> <select id="tRes"></select></label><span class="muted" id="tCount"></span><span class="status" id="tStatus" role="status"></span></div>
+  <div class="ttable">
+    <div class="thead" id="tHead"><span></span><span></span><span id="tDetected"></span><span id="tByHand"></span></div>
+    <div class="group" id="tList" style="border-top:1px solid var(--line)"></div>
+  </div>
+</div>
+<div class="stats" id="stats">
+  <h2 id="sTitle" style="font-size:22px;margin:0 0 12px"></h2>
+  <p class="intro" id="sNote" style="max-width:80ch"></p>
+  <div class="seg row" id="sRange" role="radiogroup"><input type="radio" name="sRange" id="sR_since" checked><label for="sR_since" id="sL_since"></label><input type="radio" name="sRange" id="sR_all"><label for="sR_all" id="sL_all"></label></div>
+  <div class="tiles" id="sTiles"></div>
+  <div id="sBody">
+    <div class="sgrid">
+      <section><span class="banner" id="sMedalsT"></span><div class="group" id="sMedals"></div></section>
+      <section><span class="banner" id="sTopT"></span><div class="group" id="sTop"></div></section>
+    </div>
+    <section><span class="banner" id="sResT"></span><div class="group wide" id="sRes"></div></section>
+    <section><span class="banner" id="sRecentT"></span><div class="group tablewrap"><table class="recent" id="sRecent"></table></div></section>
+  </div>
+</div>
 <div class="layout">
   <main>
     <h2 id="title" style="font-size:22px;margin:0 0 6px"></h2>
@@ -151,8 +267,7 @@ body.is-closed .closed { display: block; }
 <div class="bar">
   <span class="status" id="status"></span>
   <button class="btn" id="reset" type="button"></button>
-  <button class="btn primary" id="save" type="button"></button>
-  <button class="btn" id="close" type="button"></button>
+  <button class="btn primary" id="close" type="button"></button>
 </div>
 <p class="closed" id="closed"></p>
 
@@ -179,11 +294,30 @@ fetch(api + "settings").then(r => r.json()).then(d => {
   $("zoneNote").textContent = T.page_zone_note;
   $("l_full").textContent = T.page_full;
   $("v_zoom").onchange = $("v_full").onchange = draw;
-  $("save").textContent = T.page_save;
   $("reset").textContent = T.page_reset;
   $("close").textContent = T.page_close;
   $("closed").textContent = T.page_closed;
   $("foot").textContent = "COTWGoldChallenge " + d.version;
+  $("tabSettings").textContent = T.page_tab_settings;
+  $("tabTrophies").textContent = T.page_tab_trophies;
+  $("tTitle").textContent = T.page_trophies;
+  $("tKeep").textContent = T.page_keep_open;
+  $("tIntro").textContent = T.page_troph_intro;
+  $("tResLabel").textContent = T.page_reserve;
+  $("tDetected").textContent = T.page_detected;
+  $("tByHand").textContent = T.page_by_hand;
+  $("oTitle").textContent = T.page_overview;
+  $("tDetail").textContent = T.page_by_species;
+  $("tabStats").textContent = T.page_tab_stats;
+  $("sTitle").textContent = T.page_tab_stats;
+  $("sNote").textContent = T.page_stats_note;
+  $("sL_since").textContent = T.page_stats_since;
+  $("sL_all").textContent = T.page_stats_all;
+  $("sMedalsT").textContent = T.page_medals;
+  $("sResT").textContent = T.page_by_reserve;
+  $("sTopT").textContent = T.page_top_species;
+  $("sRecentT").textContent = T.page_recent;
+  loadIcons();
   build();
   updateLimits();
   draw();
@@ -390,37 +524,353 @@ function set(k, v) {
   refresh();
 }
 
+// changes are saved on their own, shortly after the last one
+let saveTimer = null;
+
 function refresh() {
   updateLimits();
-  const dirty = JSON.stringify(values) !== saved;
-  const s = $("status");
-  s.className = "status" + (dirty ? " dirty" : "");
-  s.textContent = dirty ? data.text.page_unsaved : "";
+  if (JSON.stringify(values) !== saved) {
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(save, 500);
+  }
   draw();
 }
 
-$("save").onclick = () => {
-  fetch(api + "settings", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(values) })
+function save() {
+  saveTimer = null;
+  const body = JSON.stringify(values);
+  if (body === saved) return Promise.resolve();
+  return fetch(api + "settings", { method: "POST", headers: { "Content-Type": "application/json" }, body })
     .then(r => r.ok ? r.json() : r.text().then(t => Promise.reject(t)))
     .then(() => {
-      saved = JSON.stringify(values);
-      $("status").className = "status ok";
-      $("status").textContent = data.text.page_saved;
+      saved = body;
+      flash($("status"), data.text.page_saved);
     })
-    .catch(e => { $("status").className = "status err"; $("status").textContent = String(e); });
-};
+    .catch(e => { $("status").className = "status err"; $("status").textContent = String(e).trim(); });
+}
+
+// a message that fades after a few seconds
+function flash(el, text) {
+  el.className = el.className.replace(/ (ok|err)\b/g, "") + " ok";
+  el.textContent = text;
+  el.hidden = false;
+  clearTimeout(el.timer);
+  el.timer = setTimeout(() => { el.textContent = ""; }, 4000);
+}
+
 $("reset").onclick = () => {
+  if (!confirm(data.text.page_reset_ask)) return;
   for (const f of data.fields) values[f.key] = f.default;
   $("form").innerHTML = ""; $("formAdv").innerHTML = "";
   build();
   refresh();
 };
 $("close").onclick = () => {
-  fetch(api + "close", { method: "POST" }).finally(() => {
+  (saveTimer ? save() : Promise.resolve()).finally(() => fetch(api + "close", { method: "POST" })).finally(() => {
     document.body.classList.add("is-closed");
     window.close();
   });
 };
+// a tab closed right after a change: send it anyway
+window.addEventListener("pagehide", () => {
+  if (saveTimer && navigator.sendBeacon) navigator.sendBeacon(api + "settings", new Blob([JSON.stringify(values)], { type: "application/json" }));
+});
+
+/* ---- trophies by reserve: found in the harvests, or added by hand ---- */
+let trophies = null, tReserve = null;
+const fmt = (s, ...a) => s.replace(/%d/g, () => a.shift());
+
+function showTab(name) {
+  document.body.dataset.tab = name;
+  for (const [id, n] of [["tabSettings", "settings"], ["tabTrophies", "trophies"], ["tabStats", "stats"]]) {
+    $(id).classList.toggle("on", n === name);
+    $(id).setAttribute("aria-selected", n === name);
+  }
+  if (name === "trophies") loadTrophies();
+  else if (name === "stats") loadStats();
+  else draw();
+}
+$("tabSettings").onclick = () => showTab("settings");
+$("tabTrophies").onclick = () => showTab("trophies");
+$("tabStats").onclick = () => showTab("stats");
+
+// medal counted for the challenge, from a level: -1 Great One (a diamond), 0 diamond .. 4 none
+function doneLevel(lv) {
+  const target = parseInt(values.tier ?? "1"), higher = values.higher !== "0";
+  lv = Math.max(lv, 0);
+  return lv < 4 && (lv === target || (higher && lv < target));
+}
+
+function pickReserve(n) {
+  tReserve = n;
+  showTrophies();
+  $("tDetail").scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+// overview: progress of each reserve, then the species missing everywhere with where they live
+function showOverview(d) {
+  const T = data.text, el = tag => document.createElement(tag);
+  const card = (name, done, all, n) => {
+    const c = el(n === undefined ? "div" : "button");
+    c.className = "card" + (n === undefined ? " global" : "") + (n === tReserve ? " on" : "") + (all && done === all ? " done" : "");
+    const cn = el("span"); cn.className = "cn"; cn.textContent = name; c.title = name;
+    const cv = el("span"); cv.className = "cv"; cv.textContent = done + "/" + all + " · " + Math.round(100 * done / Math.max(all, 1)) + " %";
+    const m = el("div"); m.className = "meter";
+    const i = el("i"); i.style.width = (100 * done / Math.max(all, 1)) + "%";
+    m.appendChild(i);
+    c.append(cn, cv, m);
+    if (n !== undefined) { c.type = "button"; c.id = "card_" + n; c.onclick = () => pickReserve(n); }
+    return c;
+  };
+  const cards = $("oCards");
+  cards.innerHTML = "";
+  const global = Object.entries(d.global || {});
+  cards.appendChild(card(T.page_all_species, global.filter(([, r]) => doneLevel(level(r))).length, global.length));
+  for (const res of d.reserves) {
+    const done = res.species.filter(sp => doneLevel(Math.min(level(sp.detected), level(sp.manual)))).length;
+    cards.appendChild(card(res.name, done, res.species.length, res.n));
+  }
+  // missing species: not done in any reserve
+  const where = {};
+  for (const res of d.reserves) for (const sp of res.species) {
+    (where[sp.hash] = where[sp.hash] || { hash: sp.hash, name: sp.name, cls: sp.cls, in: [] }).in.push(res);
+  }
+  const missing = global.filter(([, r]) => !doneLevel(level(r))).map(([h]) => where[h]).filter(Boolean)
+    .sort((a, b) => a.cls - b.cls || a.name.localeCompare(b.name));
+  $("oMissTitle").textContent = fmt(T.page_missing, missing.length);
+  const list = $("oMissList");
+  list.innerHTML = "";
+  if (!missing.length) {
+    const p = el("div"); p.className = "mrow muted"; p.textContent = T.page_missing_none;
+    list.appendChild(p);
+  }
+  for (const m of missing) {
+    const row = el("div"); row.className = "mrow";
+    const name = el("span"); name.className = "name"; name.textContent = m.name;
+    const cls = el("span"); cls.className = "cls muted"; cls.textContent = m.cls;
+    name.append(" ", cls);
+    row.append(speciesIcon(m.hash, 4), name);
+    for (const res of m.in) {
+      const b = el("button"); b.type = "button"; b.className = "chip"; b.textContent = res.name;
+      b.onclick = () => pickReserve(res.n);
+      row.appendChild(b);
+    }
+    list.appendChild(row);
+  }
+}
+
+function trophyError(e) {
+  clearTimeout($("tStatus").timer);
+  $("tStatus").className = "status err";
+  $("tStatus").textContent = String(e).trim();
+}
+
+// counted with the start date and mode shown in the settings, even unsaved
+function loadTrophies() {
+  const q = new URLSearchParams({ since: values.since || "", scope: values.scope || "reserve" });
+  fetch(api + "trophies?" + q)
+    .then(r => r.ok ? r.json() : r.text().then(t => Promise.reject(t)))
+    .then(d => { trophies = d; if ($("tStatus").classList.contains("err")) $("tStatus").textContent = ""; showTrophies(); })
+    .catch(e => { trophyError(e); $("tList").innerHTML = ""; });
+}
+
+function showTrophies() {
+  const T = data.text, d = trophies, sel = $("tRes");
+  if (!d.reserves || !d.reserves.length) return;
+  if (!sel.options.length) {
+    for (const r of d.reserves) sel.add(new Option(r.name, r.n));
+    sel.onchange = () => { tReserve = Number(sel.value); showTrophies(); };
+  }
+  if (tReserve === null) tReserve = d.reserves.some(r => r.n === d.reserve) ? d.reserve : d.reserves[0].n;
+  sel.value = String(tReserve);
+  $("tCount").textContent = fmt(T.page_recorded, d.recorded, d.manual);
+  $("tMode").textContent = values.scope === "mega" ? T.page_mode_mega : T.page_mode_reserve;
+  const tiers = String(values.tiers || "DIAMOND,GOLD,SILVER,BRONZE").split(",");
+  const res = d.reserves.find(r => r.n === tReserve);
+  showOverview(d);
+  const focus = document.activeElement && document.activeElement.id;
+  const list = $("tList");
+  list.innerHTML = "";
+  for (const sp of res.species) list.appendChild(trophyRow(sp, res.n, tiers));
+  if (focus && $(focus)) $(focus).focus();
+}
+
+// ranks: 0 diamond .. 3 bronze, 4 none, 5 Great One (above a diamond)
+const GREAT_ONE = 5;
+const level = r => r === GREAT_ONE ? -1 : r;
+const rankName = (r, tiers) => r === GREAT_ONE ? data.text.page_great_one : r < 4 ? tiers[r] : data.text.page_rank_none;
+
+// choices: none, bronze .. diamond, Great One; those not better than the medal found are disabled
+function trophyRow(sp, n, tiers) {
+  const T = data.text, el = tag => document.createElement(tag);
+  const row = el("div"); row.className = "trow";
+  const best = Math.min(level(sp.detected), level(sp.manual));
+  const hex = speciesIcon(sp.hash, best < 0 ? GREAT_ONE : best);
+  const name = el("span"); name.className = "name"; name.textContent = sp.name;
+  const cls = el("span"); cls.className = "cls"; cls.textContent = sp.cls;
+  name.appendChild(cls);
+  const det = el("span"); det.className = "det";
+  det.textContent = sp.detected === 4 ? "–" : rankName(sp.detected, tiers);
+  if (sp.detected !== 4) det.style.color = MEDAL[Math.max(level(sp.detected), 0)];
+  const seg = el("div"); seg.className = "seg row";
+  seg.setAttribute("role", "radiogroup");
+  seg.setAttribute("aria-label", sp.name + " – " + T.page_by_hand);
+  for (const rank of sp.canGo ? [4, 3, 2, 1, 0, GREAT_ONE] : [4, 3, 2, 1, 0]) {
+    const id = "t_" + n + "_" + sp.hash + "_" + rank;
+    const r = el("input");
+    r.type = "radio"; r.name = "t_" + n + "_" + sp.hash; r.id = id;
+    r.checked = rank === sp.manual;
+    r.disabled = rank !== 4 && level(rank) >= level(sp.detected);
+    r.onchange = () => setTrophy(sp, n, rank);
+    const l = el("label"); l.htmlFor = id; l.textContent = rankName(rank, tiers);
+    seg.append(r, l);
+  }
+  row.append(hex, name, det, seg);
+  return row;
+}
+
+function setTrophy(sp, n, rank) {
+  fetch(api + "trophies", { method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ species: sp.hash, reserve: n, rank, since: values.since || "" }) })
+    .then(r => r.ok ? r.json() : r.text().then(t => Promise.reject(t)))
+    .then(() => { flash($("tStatus"), data.text.page_saved); loadTrophies(); })
+    .catch(trophyError);
+}
+
+/* ---- species icons of the game, coloured as in the overlay ---- */
+let icons = {};
+
+function loadIcons() {
+  fetch(api + "icons").then(r => r.ok ? r.json() : {}).then(d => {
+    icons = d || {};
+    if (document.body.dataset.tab === "trophies" && trophies) showTrophies();
+    if (document.body.dataset.tab === "stats" && harvests) showStats();
+  }).catch(() => {});
+}
+
+// rank: 0 diamond .. 3 bronze, 4 none, 5 Great One (tinted as a diamond, as in the game)
+function speciesIcon(hash, rank) {
+  const lv = rank === GREAT_ONE ? 0 : Math.min(rank, 4);
+  const s = document.createElement("span");
+  if (!icons[hash]) {
+    s.className = "hex";
+    if (lv < 4) s.style.background = TINT[lv];
+    return s;
+  }
+  s.className = "icon";
+  s.innerHTML = icons[hash];
+  s.firstChild.style.filter = "url(#tint" + lv + ")";
+  return s;
+}
+
+/* ---- statistics of the harvests recorded ---- */
+let harvests = null;
+const GO_COLOR = "#C9A2FF";
+const medalColor = r => r === GREAT_ONE ? GO_COLOR : r < 4 ? MEDAL[r] : "#6b7177";
+$("sR_since").onchange = $("sR_all").onchange = () => showStats();
+
+function loadStats() {
+  fetch(api + "harvests")
+    .then(r => r.ok ? r.json() : r.text().then(t => Promise.reject(t)))
+    .then(d => { harvests = d; showStats(); })
+    .catch(e => { $("sTiles").textContent = String(e).trim(); $("sBody").hidden = true; });
+}
+
+// challenge start of the settings, in Unix seconds; 0 for all time
+function sinceTime() {
+  const m = /^(\d{4})-(\d\d)-(\d\d)(?: (\d\d):(\d\d))?/.exec(values.since || "");
+  return m ? new Date(+m[1], m[2] - 1, +m[3], +(m[4] || 0), +(m[5] || 0)).getTime() / 1000 : 0;
+}
+
+// horizontal bars: label, bar, value; the bar colour follows the item (a medal) or is the accent
+function hbars(box, rows) {
+  const max = Math.max(1, ...rows.map(r => r.n)), total = rows.reduce((a, r) => a + r.n, 0);
+  box.innerHTML = "";
+  for (const r of rows) {
+    const row = document.createElement("div");
+    row.className = "hrow";
+    row.title = r.label + " : " + r.n + " (" + Math.round(100 * r.n / Math.max(total, 1)) + " %)";
+    const l = document.createElement("span"); l.className = "hl";
+    if (r.icon) l.appendChild(r.icon);
+    else if (r.color) { const sw = document.createElement("span"); sw.className = "sw"; sw.style.background = r.color; l.appendChild(sw); }
+    l.append(r.label);
+    const t = document.createElement("span"); t.className = "ht";
+    const i = document.createElement("i"); i.style.width = (100 * r.n / max) + "%";
+    if (r.color) i.style.background = r.color;
+    if (!r.n) i.style.minWidth = "0";
+    t.appendChild(i);
+    const v = document.createElement("span"); v.className = "hv"; v.textContent = r.n;
+    row.append(l, t, v);
+    box.appendChild(row);
+  }
+}
+
+function showStats() {
+  const T = data.text, d = harvests, since = sinceTime();
+  if (!d) return;
+  $("sRange").hidden = !since;
+  const all = !since || $("sR_all").checked;
+  // medal names as written in the settings, usually in capitals: "Diamant" reads better here
+  const tiers = String(values.tiers || "DIAMOND,GOLD,SILVER,BRONZE").split(",").map(s => s.charAt(0) + s.slice(1).toLowerCase());
+  const list = d.harvests.filter(h => all || h.t >= since).sort((a, b) => b.t - a.t);
+  const count = f => list.filter(f).length;
+  const tiles = [
+    [list.length, T.page_harvests],
+    [new Set(list.map(h => h.s)).size, T.page_species_n],
+    [count(h => h.rank === GREAT_ONE), T.page_great_one],
+    [count(h => h.rank === 0), tiers[0]],
+    [count(h => h.rank === 1), tiers[1]],
+  ];
+  $("sTiles").innerHTML = "";
+  for (const [n, label] of tiles) {
+    const t = document.createElement("div"); t.className = "tile";
+    const b = document.createElement("b"); b.textContent = n;
+    const s = document.createElement("span"); s.textContent = label;
+    t.append(b, s);
+    $("sTiles").appendChild(t);
+  }
+  $("sBody").hidden = !list.length;
+  if (!list.length) {
+    const t = document.createElement("div"); t.className = "tile"; t.style.gridColumn = "1 / -1";
+    t.textContent = T.page_no_harvest;
+    $("sTiles").appendChild(t);
+    return;
+  }
+  hbars($("sMedals"), [GREAT_ONE, 0, 1, 2, 3, 4].map(r => ({ label: rankName(r, tiers), n: count(h => h.rank === r), color: medalColor(r) })));
+  const by = key => {
+    const m = new Map();
+    for (const h of list) m.set(key(h), (m.get(key(h)) || 0) + 1);
+    return [...m.entries()].sort((a, b) => b[1] - a[1]);
+  };
+  const resName = r => d.reserves[r] || T.page_unknown;
+  hbars($("sRes"), by(h => h.r).map(([r, n]) => ({ label: resName(r), n })));
+  const bestOf = s => list.filter(h => h.s === s).reduce((b, h) => level(h.rank) < level(b) ? h.rank : b, 4);
+  hbars($("sTop"), by(h => h.s).slice(0, 10).map(([s, n]) => ({ label: d.species[s] || "?", n, icon: speciesIcon(s, bestOf(s)) })));
+  // last harvests
+  const tb = $("sRecent");
+  tb.innerHTML = "";
+  const head = tb.insertRow();
+  for (const [text, num] of [[T.page_col_date], [T.page_col_species], [T.page_col_score, true], [T.page_col_medal], [T.page_reserve]]) {
+    const th = document.createElement("th"); th.textContent = text;
+    if (num) th.className = "num";
+    head.appendChild(th);
+  }
+  const date = new Intl.DateTimeFormat(data.lang, { dateStyle: "short", timeStyle: "short" });
+  for (const h of list.slice(0, 20)) {
+    const tr = tb.insertRow();
+    const cells = [date.format(new Date(h.t * 1000)), d.species[h.s] || "?", h.score.toFixed(2), rankName(h.rank, tiers), resName(h.r)];
+    cells.forEach((c, i) => {
+      const td = tr.insertCell(); td.textContent = c;
+      if (i === 1) td.prepend(speciesIcon(h.s, h.rank));
+      if (i === 2) td.className = "num";
+      if (i === 3) {
+        const sw = document.createElement("span"); sw.className = "sw"; sw.style.background = medalColor(h.rank);
+        sw.style.display = "inline-block"; sw.style.margin = "0 8px -1px 0";
+        td.prepend(sw);
+      }
+    });
+  }
+}
 
 /* ---- preview: the wall on a 1280x720 HUD, as the mod lays it out ---- */
 const TINT = ["#9EE9FF", "#FFC42E", "#F2F2F2", "#E69240"];

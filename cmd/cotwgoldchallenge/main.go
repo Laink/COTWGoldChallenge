@@ -19,6 +19,7 @@ import (
 
 	"github.com/Laink/COTWGoldChallenge/internal/apex"
 	"github.com/Laink/COTWGoldChallenge/internal/game"
+	"github.com/Laink/COTWGoldChallenge/internal/icons"
 	"github.com/Laink/COTWGoldChallenge/internal/modclass"
 	"github.com/Laink/COTWGoldChallenge/internal/moddata"
 	"github.com/Laink/COTWGoldChallenge/internal/patch"
@@ -29,6 +30,9 @@ import (
 var version = "dev"
 
 const marker = "COTWGoldChallenge.json"
+
+// iconsFile holds the species icons as SVG, by icon number, relative to dropzone/ui.
+const iconsFile = "cotwgc_icons.json"
 
 // legacyMarker is the marker of version 1, published as COTWSpottingPlus.
 const legacyMarker = "COTWSpottingPlus.json"
@@ -53,32 +57,36 @@ func gameSignature(arc *apex.Archives) string {
 	return b.String()
 }
 
-// printState tells whether the mod is installed, and whether it should be installed again.
-func printState(ui *UI, inst *game.Install, dropzone string) {
+// printState tells whether the mod is installed, and whether it should be installed again:
+// it returns true when an update is required.
+func printState(ui *UI, inst *game.Install, dropzone string) bool {
 	fmt.Println()
 	if _, err := os.Stat(filepath.Join(dropzone, legacyMarker)); err == nil {
 		fmt.Println(ui.t("state_legacy"))
-		return
+		return true
 	}
 	b, err := os.ReadFile(filepath.Join(dropzone, marker))
 	var info install
 	if err != nil || json.Unmarshal(b, &info) != nil {
 		fmt.Println(ui.t("state_none"))
-		return
+		return false
 	}
 	date := info.Date.Local().Format(ui.t("date_format"))
 	fmt.Printf(ui.t("state_installed")+"\n", date, info.Version)
 	switch {
 	case info.Version != version:
 		fmt.Println(ui.t("state_program"))
+		return true
 	case info.Game != "":
 		if arc, err := apex.Open(filepath.Join(inst.Dir, "archives_win64")); err == nil {
+			defer arc.Close()
 			if gameSignature(arc) != info.Game {
 				fmt.Println(ui.t("state_game"))
+				return true
 			}
-			arc.Close()
 		}
 	}
+	return false
 }
 
 // lines are the lines typed in the console, read by one goroutine so that a page closed by its
@@ -117,6 +125,7 @@ func main() {
 	previewData := flag.String("preview", "", "debug: id,min,max test data shown outside the game")
 	flag.Parse()
 	setupConsole()
+	checkRelease()
 
 	ui := uiFor("")
 	err := run(&ui, *gameDir, *lang, *uninstall, *edit, *shortcut, *yes, *out, *previewData)
@@ -196,6 +205,7 @@ func run(ui *UI, gameDir, lang string, uninstall, edit, shortcut, yes bool, out,
 
 	dropzone := filepath.Join(inst.Dir, "dropzone")
 	linkSaves(ui, inst, dropzone)
+	startRecorder(dropzone)
 	if uninstall {
 		return remove(ui, dropzone)
 	}
@@ -219,21 +229,31 @@ func run(ui *UI, gameDir, lang string, uninstall, edit, shortcut, yes bool, out,
 	if yes || out != "" {
 		return doInstall(ui, inst, dropzone, code, yes, out, previewData)
 	}
-	// Menu, shown again after each choice, until Enter. The settings page and the shortcut run
-	// in the background meanwhile.
+	// Menu, shown again after each choice, until Enter. The settings page, the shortcut and the
+	// recorder run in the background meanwhile. The overlay keys start with the program.
 	defer stopShortcut()
-	printState(ui, inst, dropzone)
+	update := printState(ui, inst, dropzone)
+	startKeys(dropzone, settingsLang(code))
 	for {
+		printBanner(ui)
 		fmt.Println()
-		fmt.Println(ui.t("menu"))
-		on, key, names := shortcutOn()
 		switch {
+		case !update:
+			fmt.Println(ui.t("menu_install"))
+		case colors:
+			fmt.Println(ui.t("menu_install") + "  \x1b[30;43m " + ui.t("menu_update") + " \x1b[0m")
+		default:
+			fmt.Println(ui.t("menu_install") + "  <-- " + ui.t("menu_update"))
+		}
+		fmt.Println(ui.t("menu"))
+		on, keys := shortcutOn()
+		switch label := keysLabel(ui, keys); {
 		case !on:
 			fmt.Println(ui.t("menu_key_off"))
-		case key == "" && names == "":
+		case label == "":
 			fmt.Println(ui.t("menu_key_nokey"))
 		default:
-			fmt.Printf(ui.t("menu_key_on")+"\n", keysLabel(ui, key, names))
+			fmt.Printf(ui.t("menu_key_on")+"\n", label)
 		}
 		if on {
 			fmt.Println(ui.t("menu_quit_on"))
@@ -246,25 +266,28 @@ func run(ui *UI, gameDir, lang string, uninstall, edit, shortcut, yes bool, out,
 		switch strings.TrimSpace(line) {
 		case "1":
 			if err = doInstall(ui, inst, dropzone, code, yes, out, previewData); err == nil {
-				printState(ui, inst, dropzone)
+				update = printState(ui, inst, dropzone)
+				startRecorder(dropzone)
+				startKeys(dropzone, settingsLang(code))
 			}
 		case "2":
 			stopShortcut()
 			if err = remove(ui, dropzone); err == nil {
-				printState(ui, inst, dropzone)
+				update = printState(ui, inst, dropzone)
 			}
 		case "3":
 			err = openSettings(ui, dropzone, settingsLang(code))
 		case "4":
 			if err = toggleShortcut(ui, dropzone, settingsLang(code)); err == nil {
 				fmt.Println()
-				switch on, key, names := shortcutOn(); {
+				on, keys := shortcutOn()
+				switch label := keysLabel(ui, keys); {
 				case !on:
 					fmt.Println(ui.t("key_off"))
-				case key == "" && names == "":
+				case label == "":
 					fmt.Println(ui.t("key_nokey"))
 				default:
-					fmt.Printf(ui.t("key_on")+"\n", keysLabel(ui, key, names))
+					fmt.Printf(ui.t("key_on")+"\n", label)
 				}
 			}
 		default:
@@ -396,6 +419,12 @@ func doInstall(ui *UI, inst *game.Install, dropzone, code string, yes bool, out,
 	if err := moddata.Write(filepath.Join(dropzone, "ui"), species, cx); err != nil {
 		return writeError(ui, err)
 	}
+	// species icons for the settings page; the page does without them
+	if svgs, err := icons.Extract(original); err == nil {
+		if b, err := json.Marshal(svgs); err == nil {
+			os.WriteFile(filepath.Join(dropzone, "ui", iconsFile), b, 0o644)
+		}
+	}
 	// The hunting log is read through a link to the save folder.
 	if saves, err := game.SavesDir(inst.Epic); err != nil {
 		fmt.Println(ui.t("no_saves"))
@@ -510,7 +539,7 @@ func remove(ui *UI, dropzone string) error {
 		fmt.Println(ui.t("not_installed"))
 		return nil
 	}
-	for _, f := range append(moddata.Files, "cotwgc_toggle.txt") {
+	for _, f := range append(moddata.Files, "cotwgc_toggle.txt", iconsFile) {
 		os.Remove(filepath.Join(dropzone, "ui", f))
 	}
 	game.UnlinkSaves(dropzone)

@@ -29,12 +29,13 @@ package {
 		private static const SETTINGS_URL:String = "cotwgc_settings.txt";
 		private static const RESERVES_URL:String = "cotwgc_reserves.txt";
 		private static const REGIONS_URL:String = "cotwgc_regions.txt";
+		private static const HISTORY_URL:String = "cotwgc_history.txt";
 		private static const SAME_TRIP_S:int = 4 * 3600; // harvests this close in time are in the same reserve
 		private static const WORLD_URL:String = "/cotwgc_saves/reserveworlddata_adf";
 		public static const HUD_NAME:String = "COTWGoldChallengeHud";
 		private static const RELOAD_MS:int = 2000;
 		// cotwgc_toggle.txt, written by COTWGoldChallenge.exe while its shortcut runs:
-		// "<beat> <shown 0|1> <names held 0|1>". The beat changes every second; when it stops, the
+		// "<beat> <shown 0|1> <names held 0|1> <opaque held 0|1>". The beat changes every second; when it stops, the
 		// program is closed and the overlay shows again.
 		private static const TOGGLE_URL:String = "cotwgc_toggle.txt";
 		private static const TOGGLE_MS:int = 100;
@@ -74,6 +75,10 @@ package {
 		private static var saveTail:Number = -1;
 		private static var version:int;
 		private static var entries:Array = [];
+		private static var bySpecies:Object = {}; // species hash -> its entries
+		private static var historyText:String;
+		private static var logRaw:ByteArray;
+		private static var placeAgain:Boolean; // entries to read and place again
 		private static var status:String = "";
 		private static var shownKey:String;
 		private static var placed:Object = {}; // hash -> icon of the HUD wall, see record()
@@ -93,6 +98,7 @@ package {
 		private static var menuIndex:int;
 		private static var wallOff:Boolean; // hidden with the shortcut
 		private static var namesOn:Boolean; // names key held: missing species listed with their names
+		private static var opaqueOn:Boolean; // opacity key held: species outside the reserve fully opaque
 		private static var nextToggle:int;
 		private static var toggleBeat:String;
 		private static var toggleSeen:int;
@@ -562,7 +568,7 @@ package {
 				if (text != null) {
 					readReserves(String(text));
 					reservesDone = true;
-					saveLength = -1; // parse again: reserves help to place harvests
+					placeAgain = true; // reserves help to place harvests
 				}
 			}
 			if (!regionsDone) {
@@ -575,7 +581,7 @@ package {
 						}
 					}
 					regionsDone = true;
-					saveLength = -1; // parse again with the regions
+					placeAgain = true; // place again with the regions
 				}
 			}
 			if (!worldLocked) {
@@ -587,25 +593,85 @@ package {
 					}
 				}
 			}
+			// history kept by the program: read before the save, which may be missing
+			text = fetch(HISTORY_URL, false, start);
+			if (text != null && String(text) != historyText) {
+				historyText = String(text);
+				placeAgain = true;
+			}
 			var raw:ByteArray = fetch(SAVE_URL, true, start) as ByteArray;
-			if (!raw || raw.length < 40) {
-				if (saveLength < 0 && start) {
-					status = "no save (" + SAVE_URL + ")";
+			if (raw && raw.length >= 40) {
+				raw.endian = Endian.LITTLE_ENDIAN;
+				raw.position = raw.length - 8;
+				var tail:Number = raw.readUnsignedInt() * 4294967296 + raw.readUnsignedInt();
+				if (raw.length != saveLength || tail != saveTail) {
+					saveLength = raw.length;
+					saveTail = tail;
+					logRaw = raw;
+					placeAgain = true;
 				}
+			} else if (saveLength < 0 && start && !historyText) {
+				status = "no save (" + SAVE_URL + ")";
+			}
+			if (!placeAgain || !speciesDone) {
 				return;
 			}
-			raw.endian = Endian.LITTLE_ENDIAN;
-			raw.position = raw.length - 8;
-			var tail:Number = raw.readUnsignedInt() * 4294967296 + raw.readUnsignedInt();
-			if (raw.length == saveLength && tail == saveTail) {
-				return;
+			placeAgain = false;
+			var log:Array = [];
+			var logError:String = null;
+			try {
+				log = logRaw ? parse(logRaw) : [];
+			} catch (pe:Error) {
+				logError = pe.message; // the history still counts
 			}
-			saveLength = raw.length;
-			saveTail = tail;
-			entries = parse(raw);
+			entries = merge(log, historyText ? readHistory(historyText) : []);
 			assignReserves(entries);
+			bySpecies = {};
+			for each (var he:Array in entries) {
+				if (!bySpecies[he[0]]) {
+					bySpecies[he[0]] = [];
+				}
+				bySpecies[he[0]].push(he);
+			}
 			version++;
-			status = entries.length + " entries, " + raw.length + " bytes";
+			status = logError ? "log error: " + logError : entries.length + " entries, " + log.length + " in the log";
+		}
+
+		// cotwgc_history.txt, written by the program: "h species score rank time region" for each
+		// harvest seen in the hunting log, "m species rank time reserve" for a trophy added by hand.
+		private static function readHistory(text:String):Array {
+			var out:Array = [];
+			for each (var line:String in text.split("\n")) {
+				var f:Array = trim(line).split(" ");
+				var e:Array;
+				if (f.length == 6 && f[0] == "h") {
+					e = harvest(uint(f[1]), Number(f[2]), uint(f[3]), uint(f[4]), uint(f[5]));
+				} else if (f.length == 5 && f[0] == "m") {
+					e = harvest(uint(f[1]), 0, uint(f[2]), uint(f[3]), 0);
+					e[5] = int(f[4]);
+					e[7] = true;
+				} else {
+					continue;
+				}
+				out.push(e);
+			}
+			return out;
+		}
+
+		// Harvests of the log and of the history, without the ones seen twice.
+		private static function merge(log:Array, hist:Array):Array {
+			var seen:Object = {};
+			var out:Array = [];
+			for each (var e:Array in log.concat(hist)) {
+				if (!e[7]) {
+					if (seen[e[8]]) {
+						continue;
+					}
+					seen[e[8]] = true;
+				}
+				out.push(e);
+			}
+			return out;
 		}
 
 		private static function readReserves(text:String):void {
@@ -686,21 +752,21 @@ package {
 		private static function entry(d:ByteArray, p:int):Array {
 			d.position = p;
 			var sp:uint = d.readUnsignedInt();
-			if (aliasOf[sp]) {
-				sp = aliasOf[sp];
-			}
 			var score:Number = d.readFloat();
 			var rank:uint = d.readUnsignedInt();
 			d.readUnsignedInt();
-			var ts:uint = d.readUnsignedInt();
-			var reg:uint = d.readUnsignedInt();
-			// 0 diamond .. 3 bronze, 4 none; any other rank (Great One) counts as a diamond
-			var go:Boolean = rank > 4;
-			if (go) {
-				rank = 0;
+			return harvest(sp, score, rank, d.readUnsignedInt(), d.readUnsignedInt());
+		}
+
+		// [species hash, score, rank, time, region hash, reserve, Great One, added by hand, key].
+		// Rank 0 diamond .. 3 bronze, 4 none; any other rank (Great One) counts as a diamond.
+		// The key (species, time, raw rank) finds a harvest both in the log and in the history.
+		private static function harvest(sp:uint, score:Number, rank:uint, ts:uint, reg:uint):Array {
+			if (aliasOf[sp]) {
+				sp = aliasOf[sp];
 			}
-			var out:Array = [sp, score, rank, ts, reg];
-			out[6] = go;
+			var out:Array = [sp, score, rank > 4 ? 0 : rank, ts, reg, -1, rank > 4, false];
+			out[8] = sp + "/" + ts + "/" + rank;
 			return out;
 		}
 
@@ -716,6 +782,9 @@ package {
 			}
 			var known:Array = [];
 			for each (var e:Array in list) {
+				if (e[7]) {
+					continue; // added by hand: its reserve is set, and it tells nothing about a trip
+				}
 				var r:* = regionReserve[e[4]];
 				if (r == null && only[e[0]] != null && only[e[0]] >= 0) {
 					r = only[e[0]];
@@ -754,8 +823,8 @@ package {
 			var go:Boolean = false;
 			var seen:Object = {};
 			var count:int = 0;
-			for each (var e:Array in entries) {
-				if (e[0] != hash || e[3] < from || (inReserve >= 0 && e[5] != inReserve)) {
+			for each (var e:Array in bySpecies[hash] || []) {
+				if (e[3] < from || (inReserve >= 0 && e[5] != inReserve)) {
 					continue;
 				}
 				var key:String = e[3] + ":" + e[1];
@@ -920,11 +989,16 @@ package {
 						namesOn = !namesOn;
 						wallChanged = true;
 					}
+					if (opaqueOn != (f[3] == "1")) {
+						opaqueOn = !opaqueOn;
+						wallChanged = true;
+					}
 				}
 			}
-			if ((wallOff || namesOn) && now - toggleSeen > TOGGLE_STALE_MS) {
+			if ((wallOff || namesOn || opaqueOn) && now - toggleSeen > TOGGLE_STALE_MS) {
 				wallOff = false;
 				namesOn = false;
+				opaqueOn = false;
 				wallChanged = true;
 			}
 			if (now < nextToggle || (toggleLoader && now < toggleStarted + TOGGLE_STALE_MS)) {
@@ -948,7 +1022,7 @@ package {
 		// Species wall of the current reserve, in the HUD. Settings:
 		// wall=grid|list|0, wallX, wallY, iconSize, perRow, classes=0|1, sort=reserve|class, missing=0|1.
 		private static function showHud():void {
-			var key:String = reserve + "/" + version + "/" + status + "/" + reservesDone + "/" + settingsVersion + "/" + speciesDone + "/" + wallOff + "/" + namesOn;
+			var key:String = reserve + "/" + version + "/" + status + "/" + reservesDone + "/" + settingsVersion + "/" + speciesDone + "/" + wallOff + "/" + namesOn + "/" + opaqueOn;
 			var root:* = hud;
 			var old:Sprite = root.getChildByName(HUD_NAME) as Sprite;
 			if (old && key == hudKey) {
@@ -1322,7 +1396,7 @@ package {
 				clsSize *= rk;
 			}
 			var rows:int = int(settings.megaRows || 5);
-			var attenue:Number = settings.attenue != null ? Number(settings.attenue) : 0.55;
+			var attenue:Number = opaqueOn ? 1 : settings.attenue != null ? Number(settings.attenue) : 0.55;
 			var showCls:Boolean = settings.classes != "0";
 			var here:Object = {};
 			var cur:Object = reserves[currentReserve()];
@@ -1590,7 +1664,7 @@ package {
 				root.addEventListener("enterFrame", overlayFrame);
 			}
 			cluePanel = panel;
-			var key:String = hash + "/" + version + "/" + status + "/" + reservesDone + "/" + settingsVersion + "/" + currentReserve() + "/" + st.stageWidth + "x" + st.stageHeight;
+			var key:String = hash + "/" + version + "/" + status + "/" + reservesDone + "/" + settingsVersion + "/" + currentReserve() + "/" + opaqueOn + "/" + st.stageWidth + "x" + st.stageHeight;
 			if (key != overlayKey) {
 				overlayKey = key;
 				if (overlay && overlay.parent) {
