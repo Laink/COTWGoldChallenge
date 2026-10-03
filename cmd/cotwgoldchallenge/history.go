@@ -52,27 +52,47 @@ func startRecorder(dropzone string) {
 	}
 	recorder.h = h
 	go func() {
-		log := filepath.Join(dropzone, game.SavesLink, "hunting_log_adf")
-		var size int64
-		var mod time.Time
+		saves := filepath.Join(dropzone, game.SavesLink)
+		log := watched{path: filepath.Join(saves, "hunting_log_adf")}
+		lodges := watched{path: filepath.Join(saves, harvest.LodgesFile)}
 		for ; ; time.Sleep(5 * time.Second) {
-			st, err := os.Stat(log)
-			if err != nil || (st.Size() == size && st.ModTime().Equal(mod)) {
-				continue
-			}
-			raw, err := os.ReadFile(log)
-			if err != nil {
-				continue
-			}
-			list, err := harvest.Parse(raw)
-			if err != nil {
-				continue // being written by the game: read again next time
-			}
-			if _, err := h.Merge(list); err == nil {
-				size, mod = st.Size(), st.ModTime()
-			}
+			log.read(h, harvest.Parse)
+			// the trophy lodges are never cleared by the game; they need the data files of 2.5
+			lodges.read(h, func(raw []byte) ([]harvest.Entry, error) {
+				data, err := harvest.LoadData(filepath.Join(dropzone, "ui"))
+				if err != nil {
+					return nil, err
+				}
+				return harvest.ParseLodges(raw, data)
+			})
 		}
 	}()
+}
+
+// watched is a save file read again when it changes.
+type watched struct {
+	path string
+	size int64
+	mod  time.Time
+}
+
+// read merges the harvests of the file into the history, when it changed since the last read.
+func (w *watched) read(h *harvest.History, parse func([]byte) ([]harvest.Entry, error)) {
+	st, err := os.Stat(w.path)
+	if err != nil || (st.Size() == w.size && st.ModTime().Equal(w.mod)) {
+		return
+	}
+	raw, err := os.ReadFile(w.path)
+	if err != nil {
+		return
+	}
+	list, err := parse(raw)
+	if err != nil {
+		return // being written by the game: read again next time
+	}
+	if _, err := h.Merge(list); err == nil {
+		w.size, w.mod = st.Size(), st.ModTime()
+	}
 }
 
 // printBanner tells, very visibly, that the window must stay open while playing.
@@ -109,12 +129,13 @@ func printBanner(ui *UI) {
 // Dashboard: trophies by reserve, as the mod counts them, and the trophies added by hand.
 
 type trophyJSON struct {
-	Hash     uint32 `json:"hash"`
-	Name     string `json:"name"`
-	Class    int    `json:"cls"`
-	CanGO    bool   `json:"canGo"`    // the species has a Great One
-	Detected uint32 `json:"detected"` // greatOne, or 0 diamond .. 4 none; without the trophy added by hand
-	Manual   uint32 `json:"manual"`
+	Hash     uint32   `json:"hash"`
+	Name     string   `json:"name"`
+	Class    int      `json:"cls"`
+	CanGO    bool     `json:"canGo"`    // the species has a Great One
+	Detected uint32   `json:"detected"` // greatOne, or 0 diamond .. 4 none; without the trophy added by hand
+	Manual   uint32   `json:"manual"`
+	RareFurs []string `json:"furs"` // rare furs harvested, in the challenge shown
 }
 
 // greatOne is the rank of a Great One in the dashboard, and of the trophies added by hand (any
@@ -135,11 +156,14 @@ type reserveJSON struct {
 }
 
 type harvestJSON struct {
-	Species uint32  `json:"s"`
-	Score   float32 `json:"score"`
-	Rank    uint32  `json:"rank"` // greatOne, or 0 diamond .. 4 none
-	Time    uint32  `json:"t"`
-	Reserve int     `json:"r"` // -1: unknown
+	Species uint32     `json:"s"`
+	Score   float32    `json:"score"`
+	Rank    uint32     `json:"rank"` // greatOne, or 0 diamond .. 4 none
+	Time    uint32     `json:"t"`
+	Reserve int        `json:"r"` // -1: unknown
+	Fur     string     `json:"fur,omitempty"`
+	Rarity  int        `json:"rarity"` // of the fur: 0 common .. 3 very rare
+	Odds    [2]float64 `json:"odds"`   // chance of the fur in percent, of a male and of a female
 }
 
 // harvestsAPI lists the harvests recorded, for the statistics; not the trophies added by hand.
@@ -154,7 +178,8 @@ func harvestsAPI(ui *UI, dropzone string) http.HandlerFunc {
 		out := []harvestJSON{}
 		for _, e := range data.Place(h.Entries()) {
 			if !e.Manual {
-				out = append(out, harvestJSON{e.Species, e.Score, dashboardRank(e.Rank, e.GreatOne), e.Time, e.Reserve})
+				fur := data.Furs[[2]uint32{e.Species, e.Fur}]
+				out = append(out, harvestJSON{e.Species, e.Score, dashboardRank(e.Rank, e.GreatOne), e.Time, e.Reserve, fur.Name, fur.Rarity, fur.Odds})
 			}
 		}
 		names := map[uint32]string{}
@@ -248,7 +273,7 @@ func trophiesAPI(ui *UI, dropzone, lang string) http.HandlerFunc {
 					det, g1 := harvest.Best(list, sp, since, in, mine)
 					man, mg1 := harvest.Best(list, sp, since, res.Number, func(e harvest.Placed) bool { return !mine(e) })
 					s := data.Species[sp]
-					rj.Species = append(rj.Species, trophyJSON{sp, s.Name, s.Class, s.GreatOne, dashboardRank(det, g1), dashboardRank(man, mg1)})
+					rj.Species = append(rj.Species, trophyJSON{sp, s.Name, s.Class, s.GreatOne, dashboardRank(det, g1), dashboardRank(man, mg1), data.RareFurs(list, sp, since, in)})
 				}
 				out = append(out, rj)
 			}

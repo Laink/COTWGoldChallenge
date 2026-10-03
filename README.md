@@ -11,7 +11,8 @@ harvest, and whether the animal in your binoculars can make it.
   or every species of the game (100% mode), each in the colour of the best medal you harvested
   since the start of the challenge, with a completion badge. It updates as you harvest, and a
   short animation plays on each better medal. The species you aim at with the binoculars, or
-  hear, is highlighted.
+  hear, is highlighted. A white star marks the species of which you harvested a rare fur
+  (albino, melanistic…: rare or very rare for that species, as the game rates them).
 - **Medal gauge** under the binoculars panel: gold guaranteed, gold possible with its chance,
   gold impossible, and a bronze-to-diamond scale with the animal's trophy range.
 - **Reserve selection**: the challenge progress of each reserve, in the main menu and in the
@@ -61,8 +62,8 @@ The menu stays open after each choice:
   - The **Trophies** tab shows the progress of each reserve, the missing species with the
     reserves where they live, and, reserve by reserve, the medals found in your harvests. It lets
     you add by hand the trophies the game no longer keeps.
-  - The **Stats** tab sums up the harvests recorded: medals, reserves, most harvested species
-    and last harvests.
+  - The **Stats** tab sums up the harvests recorded: medals, rare furs, reserves, most
+    harvested species and last harvests.
 - **4 Overlay keys** turns the keys off or on again. They start with the program.
 - **5 Launch the game**, through Steam or the Epic Games Launcher, with your launch options.
 - **6 Desktop shortcut**: opens COTWGoldChallenge and launches the game together, so that the
@@ -79,8 +80,10 @@ diamonds count too. Great Ones count as diamonds.
 - The chances of the gauge follow the game's own estimation rules: the score range and the weight
   shown by the skill, and how scores are spread in each species.
 - The overlay reads your hunting log in your save folder, through a link made in `dropzone`. It
-  never writes to your saves. The harvests recorded by the program and the trophies added by hand
-  are in `dropzone/ui/cotwgc_history.txt`, kept when you uninstall.
+  never writes to your saves. The program also reads your trophy lodges (the trophies on display,
+  and the harvests kept to be mounted), which the game never clears. The harvests recorded by the
+  program and the trophies added by hand are in `dropzone/ui/cotwgc_history.txt`, kept when you
+  uninstall.
 - The movies of the game that the mod changes (`ui/clue_hud.gfx`, `ui/hud.gfx`,
   `ui/main_menu.gfx`, `ui/change_reserve.gfx`) are read from your game and patched on your
   computer. No game file is distributed. The files of another mod that replaces them are kept as

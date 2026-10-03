@@ -36,6 +36,8 @@ type Entry struct {
 	Region  uint32
 	Reserve int
 	Manual  bool
+	Fur     uint32 // hash of the fur name ("animal_visual_variation_albino"), 0 when unknown
+	Lodge   bool   // read in the trophy lodges: no region, its reserve set when known
 }
 
 func (e Entry) key() string {
@@ -102,6 +104,7 @@ func Parse(raw []byte) ([]Entry, error) {
 			Species: binary.LittleEndian.Uint32(d[p:]),
 			Score:   math.Float32frombits(binary.LittleEndian.Uint32(d[p+4:])),
 			Rank:    binary.LittleEndian.Uint32(d[p+8:]),
+			Fur:     binary.LittleEndian.Uint32(d[p+12:]),
 			Time:    binary.LittleEndian.Uint32(d[p+16:]),
 			Region:  binary.LittleEndian.Uint32(d[p+20:]),
 			Reserve: -1,
@@ -131,12 +134,12 @@ type History struct {
 	mu      sync.Mutex
 	path    string
 	entries []Entry
-	keys    map[string]bool
+	keys    map[string]uint32 // harvests in the history -> their fur
 }
 
 // Load reads the history of a dropzone/ui folder; a missing file is an empty history.
 func Load(uiDir string) (*History, error) {
-	h := &History{path: filepath.Join(uiDir, HistoryFile), keys: map[string]bool{}}
+	h := &History{path: filepath.Join(uiDir, HistoryFile), keys: map[string]uint32{}}
 	b, err := os.ReadFile(h.path)
 	if errors.Is(err, os.ErrNotExist) {
 		return h, nil
@@ -152,38 +155,99 @@ func Load(uiDir string) (*History, error) {
 			return uint32(v)
 		}
 		switch {
-		case len(f) == 6 && f[0] == "h":
+		case (len(f) == 6 || len(f) == 7) && f[0] == "h": // no fur before version 2.5
 			s, _ := strconv.ParseFloat(f[2], 32)
-			h.add(Entry{Species: num(1), Score: float32(s), Rank: num(3), Time: num(4), Region: num(5), Reserve: -1})
+			e := Entry{Species: num(1), Score: float32(s), Rank: num(3), Time: num(4), Region: num(5), Reserve: -1}
+			if len(f) == 7 {
+				e.Fur = num(6)
+			}
+			h.add(e)
 		case len(f) == 5 && f[0] == "m":
 			h.entries = append(h.entries, Entry{Species: num(1), Rank: num(2), Time: num(3), Reserve: int(num(4)), Manual: true})
+		case len(f) == 7 && f[0] == "t":
+			s, _ := strconv.ParseFloat(f[2], 32)
+			r, _ := strconv.Atoi(f[5])
+			h.add(Entry{Species: num(1), Score: float32(s), Rank: num(3), Time: num(4), Reserve: r, Fur: num(6), Lodge: true})
 		}
 	}
 	return h, nil
 }
 
-func (h *History) add(e Entry) bool {
+// add adds a harvest not in the history yet. A harvest recorded before the fur was kept gets it:
+// changed is then true.
+func (h *History) add(e Entry) (added, changed bool) {
 	k := e.key()
-	if h.keys[k] {
-		return false
+	fur, ok := h.keys[k]
+	if !ok {
+		// the same harvest seen in the hunting log and in the trophy lodges: the times differ by
+		// a few seconds. The one of the hunting log is kept, as the mod reads the log too.
+		if i := h.twin(e); i >= 0 {
+			old := h.entries[i]
+			if e.Lodge {
+				if old.Fur == 0 && e.Fur != 0 {
+					h.entries[i].Fur, h.keys[old.key()] = e.Fur, e.Fur
+					return false, true
+				}
+				return false, false
+			}
+			if e.Fur == 0 {
+				e.Fur = old.Fur
+			}
+			delete(h.keys, old.key())
+			h.keys[k] = e.Fur
+			h.entries[i] = e
+			return false, true
+		}
+		h.keys[k] = e.Fur
+		h.entries = append(h.entries, e)
+		return true, true
 	}
-	h.keys[k] = true
-	h.entries = append(h.entries, e)
-	return true
+	if fur != 0 || e.Fur == 0 {
+		return false, false
+	}
+	h.keys[k] = e.Fur
+	for i := range h.entries {
+		if !h.entries[i].Manual && h.entries[i].key() == k {
+			h.entries[i].Fur = e.Fur
+		}
+	}
+	return false, true
 }
 
-// Merge adds the harvests not in the history yet, and saves it when some were added.
+// twin finds, for a harvest of the trophy lodges, the same harvest of the hunting log, or the
+// reverse: same species and rank, within a minute. -1 when there is none.
+func (h *History) twin(e Entry) int {
+	if e.Manual {
+		return -1
+	}
+	for i, o := range h.entries {
+		if o.Manual || o.Lodge == e.Lodge || o.Species != e.Species || o.Rank != e.Rank {
+			continue
+		}
+		if d := int64(o.Time) - int64(e.Time); d >= -60 && d <= 60 {
+			return i
+		}
+	}
+	return -1
+}
+
+// Merge adds the harvests not in the history yet, and saves it when it changed.
 func (h *History) Merge(list []Entry) (int, error) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	n := 0
+	n, changed := 0, false
 	for _, e := range list {
-		e.Reserve, e.Manual = -1, false
-		if h.add(e) {
+		if !e.Lodge {
+			e.Reserve = -1
+		}
+		e.Manual = false
+		a, c := h.add(e)
+		if a {
 			n++
 		}
+		changed = changed || c
 	}
-	if n == 0 {
+	if !changed {
 		return 0, nil
 	}
 	return n, h.save()
@@ -230,14 +294,18 @@ func (h *History) Counts() (int, int) {
 func (h *History) save() error {
 	var b strings.Builder
 	b.WriteString("# COTWGoldChallenge - harvests seen by the program, and trophies added by hand\n")
-	b.WriteString("# h species score rank time region / m species rank time reserve\n")
+	b.WriteString("# h species score rank time region fur / t (trophy lodges) species score rank time reserve fur /\n")
+	b.WriteString("# m (by hand) species rank time reserve\n")
 	list := append([]Entry(nil), h.entries...)
 	sort.SliceStable(list, func(i, j int) bool { return list[i].Time < list[j].Time })
 	for _, e := range list {
-		if e.Manual {
+		switch {
+		case e.Manual:
 			fmt.Fprintf(&b, "m %d %d %d %d\n", e.Species, e.Rank, e.Time, e.Reserve)
-		} else {
-			fmt.Fprintf(&b, "h %d %s %d %d %d\n", e.Species, strconv.FormatFloat(float64(e.Score), 'f', -1, 32), e.Rank, e.Time, e.Region)
+		case e.Lodge:
+			fmt.Fprintf(&b, "t %d %s %d %d %d %d\n", e.Species, strconv.FormatFloat(float64(e.Score), 'f', -1, 32), e.Rank, e.Time, e.Reserve, e.Fur)
+		default:
+			fmt.Fprintf(&b, "h %d %s %d %d %d %d\n", e.Species, strconv.FormatFloat(float64(e.Score), 'f', -1, 32), e.Rank, e.Time, e.Region, e.Fur)
 		}
 	}
 	tmp := h.path + ".tmp"

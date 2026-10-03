@@ -15,7 +15,7 @@ import (
 )
 
 // Files are the data files, relative to dropzone/ui.
-var Files = []string{"cotwgc_species.txt", "cotwgc_scoring.txt", "cotwgc_reserves.txt", "cotwgc_regions.txt"}
+var Files = []string{"cotwgc_species.txt", "cotwgc_scoring.txt", "cotwgc_reserves.txt", "cotwgc_regions.txt", "cotwgc_furs.txt"}
 
 // Other names used by the hunting log for some species.
 var aliases = map[string][]string{"animal_puma_name": {"animal_mountainlion_name"}}
@@ -23,10 +23,14 @@ var aliases = map[string][]string{"animal_puma_name": {"animal_mountainlion_name
 // f32 formats a value read as a float32 without the float64 noise.
 func f32(v float64) string { return strconv.FormatFloat(v, 'g', -1, 32) }
 
+// pct formats a chance in percent with 3 significant digits.
+func pct(v float64) string { return strconv.FormatFloat(v, 'g', 3, 64) }
+
 // Write writes the data files into dir. cx gives the names in the game language.
 func Write(dir string, sp map[int]*game.Species, cx *game.Codex) error {
 	var b bytes.Buffer
-	// icon|name hash|class|name key|name|other hashes of the hunting log
+	// icon|name hash|class|name key|name|other hashes of the hunting log|hash of the engine name
+	// (the species of the trophy lodges)
 	for _, id := range game.SortedIcons(sp) {
 		s := sp[id]
 		var al []string
@@ -34,7 +38,7 @@ func Write(dir string, sp map[int]*game.Species, cx *game.Codex) error {
 			al = append(al, fmt.Sprint(apex.HashString(a)))
 		}
 		name := strings.ReplaceAll(cx.Names[s.NameKey], "|", " ")
-		fmt.Fprintf(&b, "%d|%d|%d|%s|%s|%s\n", id, apex.HashString(s.NameKey), s.Class, s.NameKey, name, strings.Join(al, ","))
+		fmt.Fprintf(&b, "%d|%d|%d|%s|%s|%s|%d\n", id, apex.HashString(s.NameKey), s.Class, s.NameKey, name, strings.Join(al, ","), apex.HashString(s.Key))
 	}
 	files := map[string][]byte{Files[0]: append([]byte{}, b.Bytes()...)}
 	b.Reset()
@@ -82,6 +86,34 @@ func Write(dir string, sp map[int]*game.Species, cx *game.Codex) error {
 		fmt.Fprintf(&b, "%d %d\n", h, cx.Regions[h])
 	}
 	files[Files[3]] = append([]byte{}, b.Bytes()...)
+	b.Reset()
+	// species name hash|fur hash (the fur of the hunting log)|rarity 0 common .. 3 very rare|name|
+	// variation indexes (the fur of the trophy lodges)|chance in percent of a male,of a female
+	for _, id := range game.SortedIcons(sp) {
+		s := sp[id]
+		var keys []string
+		for k := range s.Furs {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		for _, k := range keys {
+			name := cx.Text(k)
+			if name == "" {
+				name = strings.ReplaceAll(strings.TrimPrefix(k, "animal_visual_variation_"), "_", " ")
+			}
+			var idx []int
+			for i, f := range s.FurIndex {
+				if f == k {
+					idx = append(idx, i)
+				}
+			}
+			sort.Ints(idx)
+			odds := s.FurOdds[k]
+			fmt.Fprintf(&b, "%d|%d|%d|%s|%s|%s,%s\n", apex.HashString(s.NameKey), apex.HashString(k), s.Furs[k], strings.ReplaceAll(name, "|", " "),
+				strings.Trim(strings.ReplaceAll(fmt.Sprint(idx), " ", ","), "[]"), pct(odds[0]), pct(odds[1]))
+		}
+	}
+	files[Files[4]] = append([]byte{}, b.Bytes()...)
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return err
 	}

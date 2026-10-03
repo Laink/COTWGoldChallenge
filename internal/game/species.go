@@ -32,6 +32,10 @@ const (
 	pWeightMin    = 0x87ea42c8 // "weight_min"
 	pWeightMax    = 0x29f241f4 // "weight_max"
 	pScoreDev     = 0xac99ddc9 // "score_deviation"
+	pFurName      = 0xf336b29f // fur of a visual variation, e.g. "animal_visual_variation_albino"
+	pFurRarity    = 0xc82af7b4 // 0 common, 1 uncommon, 2 rare, 3 very rare
+	pFurIndex     = 0x73ead679 // index of a visual variation (VariationIndex of the trophy lodges)
+	pFurWeight    = 0xd8a03db0 // "probability": weight of a visual variation
 )
 
 // Dist is one scoring distribution of a species: the weight and score ranges of one gender,
@@ -60,6 +64,15 @@ type Species struct {
 	TruRACS bool
 	Weight  bool // the trophy score follows the weight
 	Dists   []Dist
+	// Furs gives the rarity of each fur, by its name ("animal_visual_variation_albino", whose hash
+	// is the fur of the hunting log): 0 common .. 3 very rare. A fur of several rarities (by gender)
+	// keeps the lowest.
+	Furs map[string]int
+	// FurIndex gives the fur of each visual variation index (the trophies of the lodges).
+	FurIndex map[int]string
+	// FurOdds gives the chance of each fur, in percent, for a male and for a female (0 when the
+	// fur is not of that gender).
+	FurOdds map[string][2]float64
 }
 
 func name(n *apex.Node) string {
@@ -129,6 +142,9 @@ func LoadSpecies(a *apex.Archives, progress func(step string, done, total int)) 
 		}
 		var sets []antlerSet
 		for _, c := range sp.Children {
+			if name(c) == "VisualVariationSettings" {
+				s.Furs, s.FurIndex, s.FurOdds = furs(c)
+			}
 			if name(c) != "ScoringSettings" {
 				continue
 			}
@@ -195,6 +211,46 @@ func LoadSpecies(a *apex.Archives, progress func(step string, done, total int)) 
 		out[s.Icon] = s
 	}
 	return out, nil
+}
+
+// furs reads the visual variations of a species: fur name -> rarity, index -> fur name, and fur
+// name -> chance in percent for a male and a female. A variation of gender 0 is of both genders,
+// 1 male, 2 female; its weight is shared with the variations of the same gender.
+func furs(settings *apex.Node) (map[string]int, map[int]string, map[string][2]float64) {
+	out, byIndex, odds := map[string]int{}, map[int]string{}, map[string][2]float64{}
+	var total [2]float64
+	for _, v := range settings.Children {
+		w, _ := v.Props[pFurWeight].(uint32)
+		g, _ := v.Props[pGender].(uint32)
+		for i := range total {
+			if g == 0 || int(g) == i+1 {
+				total[i] += float64(w)
+			}
+		}
+	}
+	for _, v := range settings.Children {
+		fur, _ := v.Props[pFurName].(string)
+		r, ok := v.Props[pFurRarity].(uint32)
+		if fur == "" || !ok {
+			continue
+		}
+		if i, ok := v.Props[pFurIndex].(uint32); ok {
+			byIndex[int(i)] = fur
+		}
+		if old, seen := out[fur]; !seen || int(r) < old {
+			out[fur] = int(r)
+		}
+		w, _ := v.Props[pFurWeight].(uint32)
+		g, _ := v.Props[pGender].(uint32)
+		o := odds[fur]
+		for i := range total {
+			if (g == 0 || int(g) == i+1) && total[i] > 0 {
+				o[i] += 100 * float64(w) / total[i] // a fur can have several variations
+			}
+		}
+		odds[fur] = o
+	}
+	return out, byIndex, odds
 }
 
 // loadAntlerTables reads the TruRACS antler/horn variant tables: name -> full trophy range.

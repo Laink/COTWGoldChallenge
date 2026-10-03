@@ -30,6 +30,8 @@ package {
 		private static const RESERVES_URL:String = "cotwgc_reserves.txt";
 		private static const REGIONS_URL:String = "cotwgc_regions.txt";
 		private static const HISTORY_URL:String = "cotwgc_history.txt";
+		private static const FURS_URL:String = "cotwgc_furs.txt"; // species|fur|rarity|name
+		private static const RARE_FUR:int = 2; // rarity of a rare fur: 2 rare, 3 very rare
 		private static const SAME_TRIP_S:int = 4 * 3600; // harvests this close in time are in the same reserve
 		private static const WORLD_URL:String = "/cotwgc_saves/reserveworlddata_adf";
 		public static const HUD_NAME:String = "COTWGoldChallengeHud";
@@ -56,6 +58,8 @@ package {
 		private static var reservesDone:Boolean;
 		private static var regionsDone:Boolean;
 		private static var regionReserve:Object = {}; // region hash -> reserve number
+		private static var fursDone:Boolean;
+		private static var rareFurs:Object = {}; // "species/fur" hashes of the rare furs -> true
 		private static var worldLocked:Boolean; // the HUD told the reserve: stop reading it from the save
 		private static var reserves:Object = {}; // number -> {name, hashes}
 		private static var reserve:int = -1;
@@ -584,6 +588,19 @@ package {
 					placeAgain = true; // place again with the regions
 				}
 			}
+			if (!fursDone) {
+				text = fetch(FURS_URL, false, start);
+				if (text != null) {
+					for each (var fl:String in String(text).split("\n")) {
+						var ff:Array = trim(fl).split("|");
+						if (ff.length >= 3 && int(ff[2]) >= RARE_FUR) {
+							rareFurs[uint(ff[0]) + "/" + uint(ff[1])] = true;
+						}
+					}
+					fursDone = true;
+					placeAgain = true; // draw the rare furs
+				}
+			}
 			if (!worldLocked) {
 				var world:ByteArray = fetch(WORLD_URL, true, start) as ByteArray;
 				if (world && world.length > 40) {
@@ -637,19 +654,25 @@ package {
 			status = logError ? "log error: " + logError : entries.length + " entries, " + log.length + " in the log";
 		}
 
-		// cotwgc_history.txt, written by the program: "h species score rank time region" for each
-		// harvest seen in the hunting log, "m species rank time reserve" for a trophy added by hand.
+		// cotwgc_history.txt, written by the program: "h species score rank time region fur" for each
+		// harvest seen in the hunting log (no fur before 2.5), "m species rank time reserve" for a
+		// trophy added by hand.
 		private static function readHistory(text:String):Array {
 			var out:Array = [];
 			for each (var line:String in text.split("\n")) {
 				var f:Array = trim(line).split(" ");
 				var e:Array;
-				if (f.length == 6 && f[0] == "h") {
-					e = harvest(uint(f[1]), Number(f[2]), uint(f[3]), uint(f[4]), uint(f[5]));
+				if ((f.length == 6 || f.length == 7) && f[0] == "h") {
+					e = harvest(uint(f[1]), Number(f[2]), uint(f[3]), uint(f[4]), uint(f[5]), uint(f[6] || 0));
 				} else if (f.length == 5 && f[0] == "m") {
-					e = harvest(uint(f[1]), 0, uint(f[2]), uint(f[3]), 0);
+					e = harvest(uint(f[1]), 0, uint(f[2]), uint(f[3]), 0, 0);
 					e[5] = int(f[4]);
 					e[7] = true;
+				} else if (f.length == 7 && f[0] == "t") {
+					// trophy lodges: "t species score rank time reserve fur", the reserve known (-1 if not)
+					e = harvest(uint(f[1]), Number(f[2]), uint(f[3]), uint(f[4]), 0, uint(f[6]));
+					e[5] = int(f[5]);
+					e[10] = e[5] >= 0;
 				} else {
 					continue;
 				}
@@ -754,19 +777,22 @@ package {
 			var sp:uint = d.readUnsignedInt();
 			var score:Number = d.readFloat();
 			var rank:uint = d.readUnsignedInt();
-			d.readUnsignedInt();
-			return harvest(sp, score, rank, d.readUnsignedInt(), d.readUnsignedInt());
+			var fur:uint = d.readUnsignedInt();
+			var ts:uint = d.readUnsignedInt();
+			return harvest(sp, score, rank, ts, d.readUnsignedInt(), fur);
 		}
 
-		// [species hash, score, rank, time, region hash, reserve, Great One, added by hand, key].
+		// [species hash, score, rank, time, region hash, reserve, Great One, added by hand, key, fur].
 		// Rank 0 diamond .. 3 bronze, 4 none; any other rank (Great One) counts as a diamond.
 		// The key (species, time, raw rank) finds a harvest both in the log and in the history.
-		private static function harvest(sp:uint, score:Number, rank:uint, ts:uint, reg:uint):Array {
+		// Fur: hash of its name, 0 when unknown.
+		private static function harvest(sp:uint, score:Number, rank:uint, ts:uint, reg:uint, fur:uint):Array {
 			if (aliasOf[sp]) {
 				sp = aliasOf[sp];
 			}
 			var out:Array = [sp, score, rank > 4 ? 0 : rank, ts, reg, -1, rank > 4, false];
 			out[8] = sp + "/" + ts + "/" + rank;
+			out[9] = fur;
 			return out;
 		}
 
@@ -784,6 +810,10 @@ package {
 			for each (var e:Array in list) {
 				if (e[7]) {
 					continue; // added by hand: its reserve is set, and it tells nothing about a trip
+				}
+				if (e[10]) {
+					known.push(e); // trophy lodges: the reserve is known
+					continue;
 				}
 				var r:* = regionReserve[e[4]];
 				if (r == null && only[e[0]] != null && only[e[0]] >= 0) {
@@ -821,6 +851,7 @@ package {
 		private static function best(hash:uint, from:Number, inReserve:int = -1):Array {
 			var rank:int = 4;
 			var go:Boolean = false;
+			var rare:Boolean = false; // a rare fur
 			var seen:Object = {};
 			var count:int = 0;
 			for each (var e:Array in bySpecies[hash] || []) {
@@ -838,8 +869,11 @@ package {
 				if (e[6]) {
 					go = true;
 				}
+				if (!e[7] && rareFurs[hash + "/" + e[9]]) {
+					rare = true;
+				}
 			}
-			return [rank, count, go];
+			return [rank, count, go, rare];
 		}
 
 		// main_menu.gfx and change_reserve.gfx, reserve selection: called each time a reserve is shown.
@@ -1265,7 +1299,7 @@ package {
 					done++;
 				}
 				if (!(ok && missing)) {
-					list.push({hash: h, rank: rank, go: bst[2], ok: ok, cls: clsByHash[h], order: i});
+					list.push({hash: h, rank: rank, go: bst[2], rare: bst[3], ok: ok, cls: clsByHash[h], order: i});
 				}
 			}
 			if (settings.sort == "class" || classes) {
@@ -1429,7 +1463,7 @@ package {
 						done++;
 					}
 					if (!(only && ok && settings.missing == "1")) {
-						list.push({hash: h, rank: rank, go: b[2], ok: ok, cls: int(clsByHash[h]) || 99, name: fold(speciesName(h))});
+						list.push({hash: h, rank: rank, go: b[2], rare: b[3], ok: ok, cls: int(clsByHash[h]) || 99, name: fold(speciesName(h))});
 					}
 				}
 			}
@@ -1835,6 +1869,26 @@ package {
 			return out;
 		}
 
+		// White five-pointed star of a rare fur, over the top right corner of the icon: the icon keeps
+		// the colour of the medal.
+		private static function rareStar(wall:Sprite, cx:Number, cy:Number, r:Number):void {
+			var s:Shape = new Shape();
+			var g:Graphics = s.graphics;
+			g.lineStyle(Math.max(1, r * 0.18), 0x1A1A1A, 0.85);
+			g.beginFill(0xFFFFFF, 1);
+			for (var i:int = 0; i <= 10; i++) {
+				var a:Number = -Math.PI / 2 + i * Math.PI / 5;
+				var d:Number = i % 2 == 0 ? r : r * 0.45;
+				if (i == 0) {
+					g.moveTo(cx + Math.cos(a) * d, cy + Math.sin(a) * d);
+				} else {
+					g.lineTo(cx + Math.cos(a) * d, cy + Math.sin(a) * d);
+				}
+			}
+			g.endFill();
+			wall.addChild(s);
+		}
+
 		private static function addIcon(iconClass:Class, wall:Sprite, sp:Object, x:Number, y:Number, size:Number, noneAlpha:Number = 0.45):DisplayObject {
 			var c:uint = sp.rank < 4 ? TINTS[sp.rank] : 0xB4B4B4;
 			if (iconClass) {
@@ -1847,6 +1901,9 @@ package {
 				ic.y = y - b.y * k;
 				ic.transform.colorTransform = new ColorTransform(((c >> 16) & 255) / 255, ((c >> 8) & 255) / 255, (c & 255) / 255, sp.rank < 4 ? 1 : noneAlpha);
 				wall.addChild(ic);
+				if (sp.rare) {
+					rareStar(wall, x + size * 0.86, y + size * 0.14, Math.max(3.5, size * 0.2));
+				}
 				return ic;
 			}
 			var dot:Shape = new Shape();

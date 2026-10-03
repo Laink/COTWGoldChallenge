@@ -177,3 +177,72 @@ func TestPlace(t *testing.T) {
 		t.Errorf("best without the trophies by hand: %d", r)
 	}
 }
+
+func TestFurAndLodges(t *testing.T) {
+	dir := t.TempDir()
+	h, _ := Load(dir)
+	// a harvest recorded before the fur was kept gets it from the hunting log
+	h.add(Entry{Species: 1, Rank: 1, Time: 1000, Reserve: -1})
+	if n, err := h.Merge([]Entry{{Species: 1, Rank: 1, Time: 1000, Fur: 77}}); n != 0 || err != nil {
+		t.Fatalf("merge %d %v", n, err)
+	}
+	// the same harvest in the trophy lodges, 4 s apart: not added twice
+	h.Merge([]Entry{{Species: 1, Rank: 1, Time: 1004, Fur: 77, Reserve: 3, Lodge: true}})
+	// a harvest only in the lodges, then seen in the log: the log one replaces it
+	h.Merge([]Entry{{Species: 2, Rank: 0, Time: 5000, Fur: 9, Reserve: 5, Lodge: true}})
+	h.Merge([]Entry{{Species: 2, Rank: 0, Time: 4997, Region: 8}})
+	// a harvest only in the lodges stays there
+	h.Merge([]Entry{{Species: 3, Rank: 2, Time: 9000, Fur: 4, Reserve: 7, Lodge: true}})
+	h, _ = Load(dir)
+	got := h.Entries()
+	want := []Entry{
+		{Species: 1, Rank: 1, Time: 1000, Reserve: -1, Fur: 77},
+		{Species: 2, Rank: 0, Time: 4997, Region: 8, Reserve: -1, Fur: 9},
+		{Species: 3, Rank: 2, Time: 9000, Reserve: 7, Fur: 4, Lodge: true},
+	}
+	if len(got) != len(want) {
+		t.Fatalf("got %+v", got)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Errorf("entry %d: %+v, want %+v", i, got[i], want[i])
+		}
+	}
+	d := &Data{Furs: map[[2]uint32]Fur{{3, 4}: {Rarity: 3, Name: "Albino"}, {1, 77}: {Rarity: 0, Name: "Brown"}}}
+	list := d.Place(got)
+	if f := d.RareFurs(list, 3, 0, 7); len(f) != 1 || f[0] != "Albino" {
+		t.Errorf("rare furs: %v", f)
+	}
+	if f := d.RareFurs(list, 1, 0, -1); len(f) != 0 {
+		t.Errorf("common fur counted: %v", f)
+	}
+}
+
+// TestParseLodgesSave reads the trophy lodges of this computer, with the data files of the folder
+// COTWGC_DATA (dropzone/ui of an installed mod).
+func TestParseLodgesSave(t *testing.T) {
+	home, _ := os.UserHomeDir()
+	m, _ := filepath.Glob(filepath.Join(home, "Documents", "Avalanche Studios", "COTW", "Saves", "*", LodgesFile))
+	data := os.Getenv("COTWGC_DATA")
+	if len(m) == 0 || data == "" {
+		t.Skip("no save or no data files")
+	}
+	d, err := LoadData(data)
+	if err != nil {
+		t.Skip("no data files of 2.5")
+	}
+	raw, _ := os.ReadFile(m[0])
+	list, err := ParseLodges(raw, d)
+	if err != nil || len(list) == 0 {
+		t.Fatalf("%d trophies, %v", len(list), err)
+	}
+	named := 0
+	for _, e := range list {
+		if d.Furs[[2]uint32{e.Species, e.Fur}].Name != "" {
+			named++
+		}
+	}
+	if named != len(list) {
+		t.Errorf("%d furs of %d named", named, len(list))
+	}
+}

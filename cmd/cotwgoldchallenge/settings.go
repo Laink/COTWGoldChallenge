@@ -119,7 +119,7 @@ func pageText(ui *UI) map[string]string {
 	for _, k := range []string{"page_title", "page_intro", "page_reset_ask", "page_saved", "page_reset", "page_close",
 		"page_closed", "page_advanced", "page_always", "page_preview", "page_preview_note", "page_time", "page_zoom", "page_full", "page_list_note", "page_panels", "page_zone_note", "page_key_set", "page_key_clear", "page_key_wait", "page_key_none", "page_mouse",
 		"page_tab_settings", "page_tab_trophies", "page_trophies", "page_troph_intro", "page_keep_open", "page_reserve", "page_detected", "page_by_hand", "page_recorded", "page_no_mod", "page_great_one", "page_rank_none", "page_mode_mega", "page_mode_reserve",
-		"page_tab_stats", "page_overview", "page_by_species", "page_all_species", "page_missing", "page_missing_none", "page_stats_note", "page_stats_since", "page_stats_all", "page_harvests", "page_species_n", "page_medals", "page_by_reserve", "page_top_species", "page_recent", "page_col_date", "page_col_species", "page_col_score", "page_col_medal", "page_unknown", "page_no_harvest"} {
+		"page_tab_stats", "page_overview", "page_by_species", "page_all_species", "page_missing", "page_missing_none", "page_stats_note", "page_stats_since", "page_stats_all", "page_harvests", "page_species_n", "page_medals", "page_by_reserve", "page_top_species", "page_recent", "page_col_date", "page_col_species", "page_col_score", "page_col_medal", "page_col_fur", "page_rare_furs", "page_unknown", "page_no_harvest"} {
 		m[k] = ui.t(k)
 	}
 	return m

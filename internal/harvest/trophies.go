@@ -32,12 +32,26 @@ type Data struct {
 	Species  map[uint32]Species
 	Alias    map[uint32]uint32 // other hash used by the hunting log -> species hash
 	Reserves []Reserve
-	Regions  map[uint32]int // region hash -> reserve number
+	Regions  map[uint32]int       // region hash -> reserve number
+	Furs     map[[2]uint32]Fur    // species hash, fur hash -> fur
+	Engine   map[uint32]uint32    // hash of the engine name (trophy lodges) -> species hash
+	FurIndex map[[2]uint32]uint32 // species hash, variation index (trophy lodges) -> fur hash
 }
+
+// Fur is a fur of a species. Rarity: 0 common, 1 uncommon, 2 rare, 3 very rare.
+type Fur struct {
+	Rarity int
+	Name   string
+	Odds   [2]float64 // chance in percent of a male and of a female (0: not of that gender)
+}
+
+// RareFur is the lowest rarity counted as a rare fur.
+const RareFur = 2
 
 // LoadData reads cotwgc_species.txt, cotwgc_reserves.txt and cotwgc_regions.txt.
 func LoadData(uiDir string) (*Data, error) {
-	d := &Data{Species: map[uint32]Species{}, Alias: map[uint32]uint32{}, Regions: map[uint32]int{}}
+	d := &Data{Species: map[uint32]Species{}, Alias: map[uint32]uint32{}, Regions: map[uint32]int{}, Furs: map[[2]uint32]Fur{},
+		Engine: map[uint32]uint32{}, FurIndex: map[[2]uint32]uint32{}}
 	read := func(name string) ([]string, error) {
 		b, err := os.ReadFile(filepath.Join(uiDir, name))
 		if err != nil {
@@ -65,6 +79,9 @@ func LoadData(uiDir string) (*Data, error) {
 		icon, _ := strconv.Atoi(f[0])
 		d.Species[h] = Species{Hash: h, Name: f[4], Class: cls, Icon: icon}
 		byIcon[f[0]] = h
+		if len(f) > 6 && f[6] != "" {
+			d.Engine[num(f[6])] = h
+		}
 		if len(f) > 5 {
 			for _, a := range strings.Split(f[5], ",") {
 				if a != "" {
@@ -117,6 +134,27 @@ func LoadData(uiDir string) (*Data, error) {
 			d.Regions[num(f[0])] = n
 		}
 	}
+	// species hash|fur hash|rarity|name; missing for a mod installed before version 2.5
+	lines, _ = read("cotwgc_furs.txt")
+	for _, l := range lines {
+		if f := strings.Split(l, "|"); len(f) >= 4 {
+			r, _ := strconv.Atoi(f[2])
+			fur := Fur{Rarity: r, Name: f[3]}
+			if len(f) > 5 {
+				for i, s := range strings.SplitN(f[5], ",", 2) {
+					fur.Odds[i], _ = strconv.ParseFloat(s, 64)
+				}
+			}
+			d.Furs[[2]uint32{num(f[0]), num(f[1])}] = fur
+			if len(f) > 4 {
+				for _, i := range strings.Split(f[4], ",") {
+					if i != "" {
+						d.FurIndex[[2]uint32{num(f[0]), num(i)}] = num(f[1])
+					}
+				}
+			}
+		}
+	}
 	if len(d.Species) == 0 || len(d.Reserves) == 0 {
 		return nil, errors.New("empty data files")
 	}
@@ -149,7 +187,9 @@ func (d *Data) Place(list []Entry) []Placed {
 			p.Rank, p.GreatOne = 0, true
 		}
 		if !e.Manual {
-			if r, ok := d.Regions[e.Region]; ok {
+			if e.Lodge && e.Reserve >= 0 {
+				// the lodges know the reserve
+			} else if r, ok := d.Regions[e.Region]; ok {
 				p.Reserve = r
 			} else if r, ok := only[p.Species]; ok && r >= 0 {
 				p.Reserve = r
@@ -199,4 +239,21 @@ func Best(list []Placed, species uint32, since uint32, reserve int, skip func(Pl
 		g1 = g1 || e.GreatOne
 	}
 	return rank, g1
+}
+
+// RareFurs returns the names of the rare furs of a species harvested since a time, in a reserve
+// (any reserve when reserve < 0).
+func (d *Data) RareFurs(list []Placed, species uint32, since uint32, reserve int) []string {
+	var out []string
+	seen := map[uint32]bool{}
+	for _, e := range list {
+		if e.Species != species || e.Manual || e.Time < since || (reserve >= 0 && e.Reserve != reserve) || seen[e.Fur] {
+			continue
+		}
+		if f, ok := d.Furs[[2]uint32{species, e.Fur}]; ok && f.Rarity >= RareFur {
+			seen[e.Fur] = true
+			out = append(out, f.Name)
+		}
+	}
+	return out
 }

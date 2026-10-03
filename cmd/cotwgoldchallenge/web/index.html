@@ -176,6 +176,16 @@ table.recent th { text-align: left; color: var(--muted); font-weight: 400; font-
 table.recent td { padding: 7px 14px; border-top: 1px solid var(--line); }
 table.recent .num { text-align: right; font-variant-numeric: tabular-nums; }
 .tablewrap { overflow-x: auto; }
+/* rare fur: a white star over the corner of the icon, which keeps the colour of the medal */
+.rare { position: relative; display: inline-block; flex: none; vertical-align: middle; }
+.rare.hex { clip-path: none; background: none; width: auto; height: auto; }
+.rare > .icon, .rare > .hex { margin: 0 !important; }
+.rare .star { position: absolute; top: -4px; right: -4px; width: 52%; height: auto; aspect-ratio: 1; min-width: 12px; fill: #fff; stroke: #1a1a1a; stroke-width: 1.6; overflow: visible; }
+table.recent .rare { margin-right: 8px; }
+.mrow .rare, .hl .rare { margin: 0; }
+.trow .fur { display: block; color: var(--text); font-weight: 400; font-size: 13px; margin-top: 2px; }
+td.fur-rare { font-weight: 600; }
+td .odds { margin-left: 8px; color: var(--muted); font-weight: 400; font-size: 12.5px; white-space: nowrap; }
 @media (max-width: 760px) { .stats { padding-left: 16px; padding-right: 16px; } .hrow { grid-template-columns: minmax(0, 110px) minmax(0, 1fr) 52px; } }
 .keep { background: #3a2c14; border-left: 4px solid var(--accent); padding: 10px 14px; margin: 0 0 18px; font-weight: 600; }
 .tbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; margin: 18px 0 6px; }
@@ -195,13 +205,13 @@ select:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
 .mrow .icon, .hl .icon, table.recent .icon { width: 22px; height: 24px; vertical-align: middle; }
 table.recent .icon { margin-right: 8px; }
 .hex { display: inline-block; flex: none; width: 26px; height: 29px; clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%); background: #8b9096; }
-.trow .name { font-weight: 600; }
+.trow .name { font-weight: 600; padding-left: 10px; }
 .trow .cls { color: var(--muted); font-weight: 400; font-size: 13px; margin-left: 6px; }
 .trow .det { font-size: 14px; }
 .trow .seg.row label { min-width: 0; padding: 4px 9px; font-size: 14px; }
 .trow .seg input:disabled + label { opacity: .3; cursor: default; }
 .trow .seg input:disabled + label:hover { border-color: var(--line); }
-@media (max-width: 760px) { .thead { display: none !important; } .ttable { grid-template-columns: 30px minmax(0, 1fr); row-gap: 0; } .trow { row-gap: 6px; } .trow .det, .trow .seg { grid-column: 2; } .troph { padding-left: 16px; padding-right: 16px; } }
+@media (max-width: 900px) { .thead { display: none !important; } .ttable { grid-template-columns: 30px minmax(0, 1fr); row-gap: 0; } .trow { row-gap: 6px; } .trow .det, .trow .seg { grid-column: 2; } .troph { padding-left: 16px; padding-right: 16px; } }
 </style>
 </head>
 <body data-tab="settings">
@@ -243,6 +253,7 @@ table.recent .icon { margin-right: 8px; }
       <section><span class="banner" id="sTopT"></span><div class="group" id="sTop"></div></section>
     </div>
     <section><span class="banner" id="sResT"></span><div class="group wide" id="sRes"></div></section>
+    <section id="sRareSec" hidden><span class="banner" id="sRareT"></span><div class="group tablewrap"><table class="recent" id="sRare"></table></div></section>
     <section><span class="banner" id="sRecentT"></span><div class="group tablewrap"><table class="recent" id="sRecent"></table></div></section>
   </div>
 </div>
@@ -697,6 +708,7 @@ function showTrophies() {
 
 // ranks: 0 diamond .. 3 bronze, 4 none, 5 Great One (above a diamond)
 const GREAT_ONE = 5;
+const RARE_FUR = 2; // rarity of a rare fur: 2 rare, 3 very rare
 const level = r => r === GREAT_ONE ? -1 : r;
 const rankName = (r, tiers) => r === GREAT_ONE ? data.text.page_great_one : r < 4 ? tiers[r] : data.text.page_rank_none;
 
@@ -705,10 +717,15 @@ function trophyRow(sp, n, tiers) {
   const T = data.text, el = tag => document.createElement(tag);
   const row = el("div"); row.className = "trow";
   const best = Math.min(level(sp.detected), level(sp.manual));
-  const hex = speciesIcon(sp.hash, best < 0 ? GREAT_ONE : best);
+  const furs = sp.furs || [];
+  const hex = speciesIcon(sp.hash, best < 0 ? GREAT_ONE : best, furs.length > 0);
   const name = el("span"); name.className = "name"; name.textContent = sp.name;
   const cls = el("span"); cls.className = "cls"; cls.textContent = sp.cls;
   name.appendChild(cls);
+  if (furs.length) {
+    const f = el("span"); f.className = "fur"; f.textContent = "★ " + furs.join(", ");
+    name.appendChild(f);
+  }
   const det = el("span"); det.className = "det";
   det.textContent = sp.detected === 4 ? "–" : rankName(sp.detected, tiers);
   if (sp.detected !== 4) det.style.color = MEDAL[Math.max(level(sp.detected), 0)];
@@ -749,18 +766,24 @@ function loadIcons() {
 }
 
 // rank: 0 diamond .. 3 bronze, 4 none, 5 Great One (tinted as a diamond, as in the game)
-function speciesIcon(hash, rank) {
+// rare: a white star over the corner, for a rare fur (the icon keeps the colour of the medal)
+function speciesIcon(hash, rank, rare) {
   const lv = rank === GREAT_ONE ? 0 : Math.min(rank, 4);
   const s = document.createElement("span");
   if (!icons[hash]) {
     s.className = "hex";
     if (lv < 4) s.style.background = TINT[lv];
-    return s;
+  } else {
+    s.className = "icon";
+    s.innerHTML = icons[hash];
+    s.firstChild.style.filter = "url(#tint" + lv + ")";
   }
-  s.className = "icon";
-  s.innerHTML = icons[hash];
-  s.firstChild.style.filter = "url(#tint" + lv + ")";
-  return s;
+  if (!rare) return s;
+  const w = document.createElement("span");
+  w.className = "rare " + s.className;
+  w.append(s);
+  w.insertAdjacentHTML("beforeend", '<svg class="star" viewBox="-10 -10 20 20" aria-hidden="true"><path d="M0-9 2.12-2.91 8.56-2.78 3.42 1.11 5.29 7.28 0 3.6-5.29 7.28-3.42 1.11-8.56-2.78-2.12-2.91Z"/></svg>');
+  return w;
 }
 
 /* ---- statistics of the harvests recorded ---- */
@@ -820,6 +843,7 @@ function showStats() {
     [count(h => h.rank === GREAT_ONE), T.page_great_one],
     [count(h => h.rank === 0), tiers[0]],
     [count(h => h.rank === 1), tiers[1]],
+    [count(h => h.rarity >= RARE_FUR), T.page_rare_furs],
   ];
   $("sTiles").innerHTML = "";
   for (const [n, label] of tiles) {
@@ -847,23 +871,48 @@ function showStats() {
   const bestOf = s => list.filter(h => h.s === s).reduce((b, h) => level(h.rank) < level(b) ? h.rank : b, 4);
   hbars($("sTop"), by(h => h.s).slice(0, 10).map(([s, n]) => ({ label: d.species[s] || "?", n, icon: speciesIcon(s, bestOf(s)) })));
   // last harvests
-  const tb = $("sRecent");
+  harvestTable($("sRecent"), list.slice(0, 20), tiers, resName);
+  // rare furs of the period, all of them
+  const rare = list.filter(h => h.rarity >= RARE_FUR);
+  $("sRareSec").hidden = !rare.length;
+  $("sRareT").textContent = T.page_rare_furs + " (" + rare.length + ")";
+  harvestTable($("sRare"), rare, tiers, resName, true);
+}
+
+// chance of a fur, from the game: one value, or the range when males and females differ
+function oddsText(odds) {
+  const nf = new Intl.NumberFormat(data.lang, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const v = (odds || []).filter(x => x > 0);
+  if (!v.length) return "";
+  const lo = nf.format(Math.min(...v)), hi = nf.format(Math.max(...v));
+  return (lo === hi ? lo : lo + "–" + hi) + " %";
+}
+
+// table of harvests: date, species, fur (with its chance when odds is set), score, medal, reserve
+function harvestTable(tb, rows, tiers, resName, odds) {
+  const T = data.text, d = harvests;
   tb.innerHTML = "";
   const head = tb.insertRow();
-  for (const [text, num] of [[T.page_col_date], [T.page_col_species], [T.page_col_score, true], [T.page_col_medal], [T.page_reserve]]) {
+  for (const [text, num] of [[T.page_col_date], [T.page_col_species], [T.page_col_fur], [T.page_col_score, true], [T.page_col_medal], [T.page_reserve]]) {
     const th = document.createElement("th"); th.textContent = text;
     if (num) th.className = "num";
     head.appendChild(th);
   }
   const date = new Intl.DateTimeFormat(data.lang, { dateStyle: "short", timeStyle: "short" });
-  for (const h of list.slice(0, 20)) {
+  for (const h of rows) {
     const tr = tb.insertRow();
-    const cells = [date.format(new Date(h.t * 1000)), d.species[h.s] || "?", h.score.toFixed(2), rankName(h.rank, tiers), resName(h.r)];
+    const rare = h.rarity >= RARE_FUR;
+    const cells = [date.format(new Date(h.t * 1000)), d.species[h.s] || "?", (rare ? "★ " : "") + (h.fur || "–"), h.score.toFixed(2), rankName(h.rank, tiers), resName(h.r)];
     cells.forEach((c, i) => {
       const td = tr.insertCell(); td.textContent = c;
-      if (i === 1) td.prepend(speciesIcon(h.s, h.rank));
-      if (i === 2) td.className = "num";
-      if (i === 3) {
+      if (i === 1) td.prepend(speciesIcon(h.s, h.rank, rare));
+      if (i === 2 && rare) td.className = "fur-rare";
+      if (i === 2 && h.fur && odds) {
+        const o = document.createElement("span"); o.className = "odds"; o.textContent = oddsText(h.odds);
+        td.append(o);
+      }
+      if (i === 3) td.className = "num";
+      if (i === 4) {
         const sw = document.createElement("span"); sw.className = "sw"; sw.style.background = medalColor(h.rank);
         sw.style.display = "inline-block"; sw.style.margin = "0 8px -1px 0";
         td.prepend(sw);

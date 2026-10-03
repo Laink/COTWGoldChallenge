@@ -22,7 +22,12 @@ type Codex struct {
 	Regions      map[uint32]int    // hash of a region or landmark name key -> reserve number
 	ReserveNames map[int]string    // reserve number -> translated name
 	Names        map[string]string // species name key -> translated name
+	loc          *loc
+	lang         int
 }
+
+// Text returns the translation of a key, "" when there is none.
+func (c *Codex) Text(key string) string { return c.loc.get(c.lang, key) }
 
 // Language indexes of the translation table.
 var locLanguages = map[string]int{"en": 0, "fr": 1, "de": 2, "es": 3, "ru": 4, "pl": 5, "ja": 6, "pt": 7, "cs": 8, "zh-hans": 9}
@@ -49,7 +54,7 @@ func LoadCodex(a *apex.Archives, lang string) (*Codex, error) {
 	if !ok {
 		li = 0
 	}
-	c := &Codex{Regions: map[uint32]int{}, ReserveNames: map[int]string{}, Names: map[string]string{}}
+	c := &Codex{Regions: map[uint32]int{}, ReserveNames: map[int]string{}, Names: map[string]string{}, loc: loc, lang: li}
 	for _, sheet := range []string{"Regions", "Landmarks"} {
 		rows := sheets[sheet]
 		if len(rows) == 0 {
