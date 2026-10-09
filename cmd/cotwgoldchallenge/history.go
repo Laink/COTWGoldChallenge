@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -15,7 +16,9 @@ import (
 	"github.com/Laink/COTWGoldChallenge/internal/game"
 	"github.com/Laink/COTWGoldChallenge/internal/harvest"
 	"github.com/Laink/COTWGoldChallenge/internal/icons"
+	"github.com/Laink/COTWGoldChallenge/internal/maps"
 	"github.com/Laink/COTWGoldChallenge/internal/patch"
+	"github.com/Laink/COTWGoldChallenge/internal/safefile"
 	"github.com/Laink/COTWGoldChallenge/internal/settings"
 )
 
@@ -46,9 +49,15 @@ func startRecorder(dropzone string) {
 	if recorder.h != nil {
 		return
 	}
-	h, err := harvest.Load(filepath.Join(dropzone, "ui"))
+	uiDir := filepath.Join(dropzone, "ui")
+	h, err := harvest.Load(uiDir)
 	if err != nil {
+		// a history not read to the end is left as it is, not saved again without its end
+		fmt.Println("COTWGoldChallenge:", err)
 		return
+	}
+	if data, err := harvest.LoadData(uiDir); err == nil {
+		h.SetAliases(data.Alias)
 	}
 	recorder.h = h
 	go func() {
@@ -56,13 +65,15 @@ func startRecorder(dropzone string) {
 		log := watched{path: filepath.Join(saves, "hunting_log_adf")}
 		lodges := watched{path: filepath.Join(saves, harvest.LodgesFile)}
 		for ; ; time.Sleep(5 * time.Second) {
+			h.Flush() // a save that failed (the game reading the file) is tried again
 			log.read(h, harvest.Parse)
 			// the trophy lodges are never cleared by the game; they need the data files of 2.5
 			lodges.read(h, func(raw []byte) ([]harvest.Entry, error) {
-				data, err := harvest.LoadData(filepath.Join(dropzone, "ui"))
+				data, err := harvest.LoadData(uiDir)
 				if err != nil {
 					return nil, err
 				}
+				h.SetAliases(data.Alias)
 				return harvest.ParseLodges(raw, data)
 			})
 		}
@@ -129,13 +140,31 @@ func printBanner(ui *UI) {
 // Dashboard: trophies by reserve, as the mod counts them, and the trophies added by hand.
 
 type trophyJSON struct {
-	Hash     uint32   `json:"hash"`
-	Name     string   `json:"name"`
-	Class    int      `json:"cls"`
-	CanGO    bool     `json:"canGo"`    // the species has a Great One
-	Detected uint32   `json:"detected"` // greatOne, or 0 diamond .. 4 none; without the trophy added by hand
-	Manual   uint32   `json:"manual"`
-	RareFurs []string `json:"furs"` // rare furs harvested, in the challenge shown
+	Hash     uint32     `json:"hash"`
+	Name     string     `json:"name"`
+	Class    int        `json:"cls"`
+	CanGO    bool       `json:"canGo"`    // the species has a Great One
+	Detected uint32     `json:"detected"` // greatOne, or 0 diamond .. 4 none; without the trophy added by hand
+	Manual   uint32     `json:"manual"`
+	RareFurs []string   `json:"furs"` // rare furs harvested, in the challenge shown
+	Here     bool       `json:"here"` // harvested in this reserve (not by hand): something on its map
+	Medals   [3]float64 `json:"t"`    // lowest scores of silver, gold and diamond
+}
+
+// speciesJSON describes a species for the album and the species sheet.
+type speciesJSON struct {
+	Class    int        `json:"cls"`
+	GreatOne bool       `json:"go"`
+	Medals   [3]float64 `json:"t"` // lowest scores of silver, gold and diamond
+	Furs     []furJSON  `json:"furs"`
+}
+
+// furJSON is a rare fur of a species, from the game data.
+type furJSON struct {
+	Hash   uint32     `json:"h"`
+	Name   string     `json:"n"`
+	Rarity int        `json:"r"` // 2 rare, 3 very rare
+	Odds   [2]float64 `json:"o"` // chance in percent, of a male and of a female
 }
 
 // greatOne is the rank of a Great One in the dashboard, and of the trophies added by hand (any
@@ -162,8 +191,11 @@ type harvestJSON struct {
 	Time    uint32     `json:"t"`
 	Reserve int        `json:"r"` // -1: unknown
 	Fur     string     `json:"fur,omitempty"`
-	Rarity  int        `json:"rarity"` // of the fur: 0 common .. 3 very rare
-	Odds    [2]float64 `json:"odds"`   // chance of the fur in percent, of a male and of a female
+	Rarity  int        `json:"rarity"`      // of the fur: 0 common .. 3 very rare
+	Odds    [2]float64 `json:"odds"`        // chance of the fur in percent, of a male and of a female
+	X       float32    `json:"x,omitempty"` // position on the map, 0 to 1 over the area played
+	Y       float32    `json:"y,omitempty"`
+	Region  uint32     `json:"g,omitempty"` // hash of the region of the hunting log
 }
 
 // harvestsAPI lists the harvests recorded, for the statistics; not the trophies added by hand.
@@ -179,7 +211,12 @@ func harvestsAPI(ui *UI, dropzone string) http.HandlerFunc {
 		for _, e := range data.Place(h.Entries()) {
 			if !e.Manual {
 				fur := data.Furs[[2]uint32{e.Species, e.Fur}]
-				out = append(out, harvestJSON{e.Species, e.Score, dashboardRank(e.Rank, e.GreatOne), e.Time, e.Reserve, fur.Name, fur.Rarity, fur.Odds})
+				// a region the game did not know (0xDEADBEEF in the log) is no region
+				region := e.Region
+				if _, known := data.Regions[region]; !known {
+					region = 0
+				}
+				out = append(out, harvestJSON{e.Species, e.Score, dashboardRank(e.Rank, e.GreatOne), e.Time, e.Reserve, fur.Name, fur.Rarity, fur.Odds, e.X, e.Y, region})
 			}
 		}
 		names := map[uint32]string{}
@@ -190,7 +227,175 @@ func harvestsAPI(ui *UI, dropzone string) http.HandlerFunc {
 		for _, res := range data.Reserves {
 			reserves[res.Number] = res.Name
 		}
-		writeJSON(w, map[string]any{"harvests": out, "species": names, "reserves": reserves})
+		// every species of the game: its medals and its rare furs (album, species sheet)
+		info := map[uint32]*speciesJSON{}
+		for k, s := range data.Species {
+			info[k] = &speciesJSON{Class: s.Class, GreatOne: s.GreatOne, Medals: s.Thresholds, Furs: []furJSON{}}
+		}
+		for k, f := range data.Furs {
+			if sp := info[k[0]]; sp != nil && f.Rarity >= harvest.RareFur {
+				sp.Furs = append(sp.Furs, furJSON{k[1], f.Name, f.Rarity, f.Odds})
+			}
+		}
+		for _, sp := range info {
+			sort.Slice(sp.Furs, func(i, j int) bool { return sp.Furs[i].Name < sp.Furs[j].Name })
+		}
+		album := h.Album()
+		if album == nil {
+			album = [][2]uint32{}
+		}
+		writeJSON(w, map[string]any{"harvests": out, "species": names, "reserves": reserves, "info": info, "album": album})
+	}
+}
+
+// albumAPI ticks a rare fur by hand in the album, or unticks it: {species, fur, on}.
+func albumAPI(ui *UI) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		h := history()
+		if h == nil {
+			http.Error(w, ui.t("page_no_mod"), http.StatusConflict)
+			return
+		}
+		var req struct {
+			Species uint32 `json:"species"`
+			Fur     uint32 `json:"fur"`
+			On      bool   `json:"on"`
+		}
+		if r.Method != http.MethodPost || json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<12)).Decode(&req) != nil {
+			http.Error(w, "bad request", http.StatusBadRequest)
+			return
+		}
+		if err := h.SetAlbum(req.Species, req.Fur, req.On, uint32(time.Now().Unix())); err != nil {
+			http.Error(w, writeError(ui, err).Error(), http.StatusInternalServerError)
+			return
+		}
+		writeJSON(w, map[string]bool{"ok": true})
+	}
+}
+
+// writeZones writes where the area played of each reserve is on its map, and its regions.
+func writeZones(arc *apex.Archives, uiDir string, reserveOf map[uint32]int) error {
+	all, err := maps.Maps(arc, reserveOf)
+	if err != nil {
+		return err
+	}
+	b, err := json.Marshal(all)
+	if err != nil {
+		return err
+	}
+	return safefile.Write(filepath.Join(uiDir, zonesFile), b)
+}
+
+// zonesAPI gives where the area played of a reserve (?r=number) is on its map, and its regions. They are written at
+// installation; for a mod installed before, they are read from the game files here.
+func zonesAPI(dropzone string) http.HandlerFunc {
+	var once sync.Once
+	return func(w http.ResponseWriter, r *http.Request) {
+		uiDir := filepath.Join(dropzone, "ui")
+		path := filepath.Join(uiDir, zonesFile)
+		once.Do(func() {
+			if _, err := os.Stat(path); err == nil {
+				return
+			}
+			data, err := harvest.LoadData(uiDir)
+			if err != nil {
+				return
+			}
+			if arc, err := apex.Open(filepath.Join(filepath.Dir(dropzone), "archives_win64")); err == nil {
+				writeZones(arc, uiDir, data.Regions)
+				arc.Close()
+			}
+		})
+		var all map[string]json.RawMessage
+		b, err := os.ReadFile(path)
+		if err != nil || json.Unmarshal(b, &all) != nil || all[r.URL.Query().Get("r")] == nil {
+			writeJSON(w, maps.Map{Frame: maps.DefaultFrame})
+			return
+		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.Write(all[r.URL.Query().Get("r")])
+	}
+}
+
+// mapAPI gives the map of a reserve (?r=number) as a JPEG image, read once from the game files.
+func mapAPI(dropzone string) http.HandlerFunc {
+	var mu sync.Mutex
+	cache := map[int][]byte{}
+	return func(w http.ResponseWriter, r *http.Request) {
+		n, err := strconv.Atoi(r.URL.Query().Get("r"))
+		if err != nil {
+			http.Error(w, "bad request", http.StatusBadRequest)
+			return
+		}
+		mu.Lock()
+		defer mu.Unlock()
+		b, ok := cache[n]
+		if !ok {
+			arc, err := apex.Open(filepath.Join(filepath.Dir(dropzone), "archives_win64"))
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusNotFound)
+				return
+			}
+			b, err = maps.JPEG(arc, n)
+			arc.Close()
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusNotFound)
+				return
+			}
+			cache[n] = b
+		}
+		w.Header().Set("Content-Type", "image/jpeg")
+		w.Header().Set("Cache-Control", "max-age=3600")
+		w.Write(b)
+	}
+}
+
+// tileAPI gives a zoom tile of the map of a reserve (?r=number&z=level&i=index) as a JPEG image.
+// The browser keeps them. The game files stay open for the next tiles, and are closed after a
+// while without any, not to keep a game update from replacing them.
+func tileAPI(dropzone string) http.HandlerFunc {
+	var mu sync.Mutex
+	var arc *apex.Archives
+	var idle *time.Timer
+	return func(w http.ResponseWriter, r *http.Request) {
+		q := r.URL.Query()
+		n, err1 := strconv.Atoi(q.Get("r"))
+		z, err2 := strconv.Atoi(q.Get("z"))
+		i, err3 := strconv.Atoi(q.Get("i"))
+		if err1 != nil || err2 != nil || err3 != nil {
+			http.Error(w, "bad request", http.StatusBadRequest)
+			return
+		}
+		mu.Lock()
+		if arc == nil {
+			a, err := apex.Open(filepath.Join(filepath.Dir(dropzone), "archives_win64"))
+			if err != nil {
+				mu.Unlock()
+				http.Error(w, err.Error(), http.StatusNotFound)
+				return
+			}
+			arc = a
+		}
+		if idle != nil {
+			idle.Stop()
+		}
+		idle = time.AfterFunc(30*time.Second, func() {
+			mu.Lock()
+			defer mu.Unlock()
+			if arc != nil {
+				arc.Close()
+				arc = nil
+			}
+		})
+		b, err := maps.TileJPEG(arc, n, z, i)
+		mu.Unlock()
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusNotFound)
+			return
+		}
+		w.Header().Set("Content-Type", "image/jpeg")
+		w.Header().Set("Cache-Control", "max-age=86400")
+		w.Write(b)
 	}
 }
 
@@ -273,7 +478,11 @@ func trophiesAPI(ui *UI, dropzone, lang string) http.HandlerFunc {
 					det, g1 := harvest.Best(list, sp, since, in, mine)
 					man, mg1 := harvest.Best(list, sp, since, res.Number, func(e harvest.Placed) bool { return !mine(e) })
 					s := data.Species[sp]
-					rj.Species = append(rj.Species, trophyJSON{sp, s.Name, s.Class, s.GreatOne, dashboardRank(det, g1), dashboardRank(man, mg1), data.RareFurs(list, sp, since, in)})
+					here := false
+					for _, e := range list {
+						here = here || (e.Species == sp && !e.Manual && e.Reserve == res.Number)
+					}
+					rj.Species = append(rj.Species, trophyJSON{sp, s.Name, s.Class, s.GreatOne, dashboardRank(det, g1), dashboardRank(man, mg1), data.RareFurs(list, sp, since, in), here, s.Thresholds})
 				}
 				out = append(out, rj)
 			}

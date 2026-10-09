@@ -1,8 +1,11 @@
 package harvest
 
 import (
+	"github.com/Laink/COTWGoldChallenge/internal/apex"
+
 	"bytes"
 	"errors"
+	"fmt"
 	"math"
 )
 
@@ -12,7 +15,12 @@ const LodgesFile = "trophy_lodges_adf"
 
 // ParseLodges reads the harvests of trophy_lodges_adf. The species and the furs come from the data
 // files: harvests of an unknown species are left out.
-func ParseLodges(raw []byte, d *Data) ([]Entry, error) {
+func ParseLodges(raw []byte, d *Data) (out []Entry, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			out, err = nil, fmt.Errorf("invalid trophy lodges: %v", r)
+		}
+	}()
 	if len(d.Engine) == 0 {
 		// data files written before version 2.5: read again once the mod is installed again
 		return nil, errors.New("no engine names in the data files")
@@ -25,46 +33,48 @@ func ParseLodges(raw []byte, d *Data) ([]Entry, error) {
 	if start < 0 {
 		return nil, errors.New("ADF not found")
 	}
-	root, err := readADF(b[start:])
+	root, err := apex.ReadADF(b[start:])
 	if err != nil {
 		return nil, err
 	}
-	animals, ok := root.field("TrophyAnimals")
+	animals, ok := root.Field("TrophyAnimals")
 	if !ok {
 		return nil, errors.New("no trophy animals")
 	}
-	var list []adfValue
-	if t, ok := animals.field("Trophies"); ok {
-		for _, e := range t.items() {
-			if a, ok := e.field("TrophyAnimal"); ok {
+	var list []apex.ADFValue
+	if t, ok := animals.Field("Trophies"); ok {
+		for _, e := range t.Items() {
+			if a, ok := e.Field("TrophyAnimal"); ok {
 				list = append(list, a)
 			}
 		}
 	}
-	if s, ok := animals.field("SavedHarvests"); ok {
-		list = append(list, s.items()...)
+	if s, ok := animals.Field("SavedHarvests"); ok {
+		list = append(list, s.Items()...)
 	}
-	if l, ok := animals.field("LastHarvest"); ok {
+	if l, ok := animals.Field("LastHarvest"); ok {
 		list = append(list, l)
 	}
-	var out []Entry
 	for _, a := range list {
-		sp, ok := d.Engine[a.u32("Type")]
-		t := a.u32("HarvestedAt")
+		sp, ok := d.Engine[a.U32("Type")]
+		t := a.U32("HarvestedAt")
 		if !ok || t == 0 {
 			continue
 		}
 		e := Entry{
 			Species: sp,
-			Score:   math.Float32frombits(a.u32("TrophyScore")),
-			Rank:    a.u32("ScoreRank"),
+			Score:   math.Float32frombits(a.U32("TrophyScore")),
+			Rank:    a.U32("ScoreRank"),
 			Time:    t,
 			Reserve: -1,
-			Fur:     d.FurIndex[[2]uint32{sp, a.u32("VariationIndex")}],
+			Fur:     d.FurIndex[[2]uint32{sp, a.U32("VariationIndex")}],
 			Lodge:   true,
 		}
-		if r := a.u32("HarvestReserve"); r < 1000 {
+		if r := a.U32("HarvestReserve"); r < 1000 {
 			e.Reserve = int(r)
+		}
+		if p, ok := a.Field("HarvestMapPosition"); ok {
+			e.X, e.Y = math.Float32frombits(p.U32("X")), math.Float32frombits(p.U32("Y"))
 		}
 		out = append(out, e)
 	}

@@ -40,6 +40,10 @@ package {
 		// "<beat> <shown 0|1> <names held 0|1> <opaque held 0|1>". The beat changes every second; when it stops, the
 		// program is closed and the overlay shows again.
 		private static const TOGGLE_URL:String = "cotwgc_toggle.txt";
+		// challenge timer, written every second by the program:
+		// "<beat> <shown 0|1> <paused 0|1> <elapsed s> <since the last species done s, -1 none>"
+		private static const TIMER_URL:String = "cotwgc_timer.txt";
+		public static const TIMER_NAME:String = "COTWGoldChallengeTimer";
 		private static const TOGGLE_MS:int = 100;
 		private static const TOGGLE_STALE_MS:int = 3000;
 		private static const COLORS:Array = [0x8FE3FF, 0xFFC42E, 0xE2E2E2, 0xC87A35]; // rank 0 diamond .. 3 bronze
@@ -82,6 +86,13 @@ package {
 		private static var bySpecies:Object = {}; // species hash -> its entries
 		private static var historyText:String;
 		private static var logRaw:ByteArray;
+		private static var lastLog:Array = []; // harvests of the last hunting log read
+		private static var timerLoader:URLLoader;
+		private static var timerNext:int = 0;
+		private static var timerBeat:String = "";
+		private static var timerSeen:int = -100000;
+		private static var timerLine:Array = null;
+		private static var timerKey:String = "";
 		private static var placeAgain:Boolean; // entries to read and place again
 		private static var status:String = "";
 		private static var shownKey:String;
@@ -634,12 +645,15 @@ package {
 				return;
 			}
 			placeAgain = false;
-			var log:Array = [];
+			var log:Array = lastLog;
 			var logError:String = null;
 			try {
 				log = logRaw ? parse(logRaw) : [];
+				lastLog = log;
 			} catch (pe:Error) {
-				logError = pe.message; // the history still counts
+				// read while the game writes it: the last log read still counts, so that no medal is
+				// lost then celebrated again
+				logError = pe.message;
 			}
 			entries = merge(log, historyText ? readHistory(historyText) : []);
 			assignReserves(entries);
@@ -996,11 +1010,92 @@ package {
 			try {
 				tick();
 				pollToggle();
+				pollTimer();
 				showHud();
 				festFrame();
 			} catch (err:Error) {
 				status = "error: " + err.message;
 			}
+		}
+
+		// Reads the challenge timer 4 times a second and shows it in the HUD (settings timerOn,
+		// timerSub, timerX, timerY, timerScale, timerSubText). Hidden when the program is closed.
+		private static function pollTimer():void {
+			var now:int = getTimer();
+			if (timerLoader && timerLoader.data != null) {
+				var f:Array = trim(String(timerLoader.data)).split(" ");
+				timerLoader = null;
+				if (f.length >= 5 && f[0] != timerBeat) {
+					timerBeat = f[0];
+					timerSeen = now;
+					timerLine = f;
+				}
+			}
+			if (now >= timerNext && (!timerLoader || now > timerNext + TOGGLE_STALE_MS)) {
+				timerNext = now + 250;
+				var l:URLLoader = new URLLoader();
+				l.addEventListener("ioError", function(e:*):void {
+					if (timerLoader == e.target) {
+						timerLoader = null;
+					}
+				});
+				timerLoader = l;
+				l.load(new URLRequest(TIMER_URL));
+			}
+			showTimer(now);
+		}
+
+		private static function showTimer(now:int):void {
+			var root:* = hud;
+			var on:Boolean = settings.timerOn == "1" && timerLine != null && now - timerSeen < TOGGLE_STALE_MS && timerLine[1] == "1";
+			var key:String = on ? timerLine.slice(1).join(" ") + "/" + settingsVersion : "";
+			var old:Sprite = root.getChildByName(TIMER_NAME) as Sprite;
+			if (key == timerKey && (old != null) == on) {
+				return;
+			}
+			timerKey = key;
+			if (old) {
+				root.removeChild(old);
+			}
+			var src:TextField = on ? findTextField(root) : null;
+			if (!src) {
+				return;
+			}
+			var box:Sprite = new Sprite();
+			box.name = TIMER_NAME;
+			box.mouseEnabled = false;
+			box.mouseChildren = false;
+			var paused:Boolean = timerLine[2] == "1";
+			var main:TextField = addText(src, box, clock(int(timerLine[3])), paused ? 0x9BA1A6 : 0xFFFFFF, 30, 0, 0, false, 0);
+			if (paused) {
+				addText(src, box, "II", 0xF3B24F, 30, main.x + main.width + 4, 0, false, 0);
+			}
+			if (settings.timerSub != "0" && int(timerLine[4]) >= 0) {
+				addText(src, box, clock(int(timerLine[4])) + "  " + (settings.timerSubText || ""), 0xD8D4CC, 17, 2, main.height - 4, false, 0);
+			}
+			shadowTexts(box);
+			var k:Number = Number(settings.timerScale || 0.6);
+			box.scaleX = box.scaleY = k > 0 ? k : 0.6;
+			// distances from the corner of the settings (timerCorner tl|tr|bl|br), to the block as drawn
+			var b:Rectangle = box.getBounds(box);
+			var w:Number = b.right * box.scaleX, h:Number = b.bottom * box.scaleY;
+			var tx:Number = Number(settings.timerX || 10), ty:Number = Number(settings.timerY || 10);
+			tx = isNaN(tx) ? 10 : tx;
+			ty = isNaN(ty) ? 10 : ty;
+			var corner:String = String(settings.timerCorner || "bl");
+			box.x = corner.charAt(1) == "r" ? 1280 - w - tx : tx;
+			box.y = corner.charAt(0) == "b" ? 720 - h - ty : ty;
+			box.x = Math.max(0, Math.min(box.x, 1280 - w));
+			box.y = Math.max(0, Math.min(box.y, 720 - h));
+			root.addChild(box);
+		}
+
+		// h:mm:ss of a number of seconds.
+		private static function clock(s:int):String {
+			s = Math.max(0, s);
+			var m:int = int(s / 60) % 60;
+			var sec:int = s % 60;
+			return int(s / 3600) + ":" + (m < 10 ? "0" : "") + m + ":" + (sec < 10 ? "0" : "") + sec;
 		}
 
 		// Reads the shortcut state every TOGGLE_MS.

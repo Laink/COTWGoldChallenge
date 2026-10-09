@@ -105,7 +105,6 @@ details.adv[open] > summary { color: var(--text); }
 .side .head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
 .side .head h2 { margin: 0; }
 .side .seg.row label { min-width: 0; padding: 4px 10px; font-size: 14px; }
-.bar .status.dirty { color: var(--focus); }
 .status.ok { color: #9fcf8a; }
 .status.err { color: #f08a7a; }
 .btn { cursor: pointer; font-size: 16px; padding: 9px 18px; border-radius: var(--radius); border: 1px solid var(--line); background: var(--panel-2); color: var(--text); white-space: nowrap; }
@@ -132,9 +131,9 @@ body.is-closed .closed { display: block; }
 .tab.on { color: var(--text); border-bottom-color: var(--accent); }
 .tab:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
 body:not([data-tab="settings"]) .layout, body:not([data-tab="settings"]) .bar { display: none; }
-.troph, .stats { display: none; padding: 28px 32px 80px; max-width: 1100px; }
-body[data-tab="trophies"] .troph, body[data-tab="stats"] .stats { display: block; }
-body.is-closed .troph, body.is-closed .stats { display: none; }
+.troph, .stats, .mapview, .album { display: none; padding: 28px 32px 80px; max-width: 1100px; }
+body[data-tab="trophies"] .troph, body[data-tab="stats"] .stats, body[data-tab="map"] .mapview, body[data-tab="album"] .album { display: block; }
+body.is-closed .troph, body.is-closed .stats, body.is-closed .mapview, body.is-closed .album { display: none; }
 h3.sub { font-family: "Barlow Condensed", sans-serif; font-weight: 600; font-size: 19px; letter-spacing: .04em; text-transform: uppercase; margin: 30px 0 4px; }
 
 /* overview: one card per reserve */
@@ -176,6 +175,102 @@ table.recent th { text-align: left; color: var(--muted); font-weight: 400; font-
 table.recent td { padding: 7px 14px; border-top: 1px solid var(--line); }
 table.recent .num { text-align: right; font-variant-numeric: tabular-nums; }
 .tablewrap { overflow-x: auto; }
+/* map of the harvests */
+.mapbox { position: relative; width: 100%; max-width: 1024px; aspect-ratio: 1; margin-top: 8px; background: #0b0c0d; border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
+.mapbox { touch-action: none; cursor: grab; user-select: none; }
+.mapbox.drag { cursor: grabbing; }
+.mapbox:fullscreen { max-width: none; aspect-ratio: auto; margin: 0; border: 0; border-radius: 0; }
+.mapbox .mapinner { position: absolute; left: 0; top: 0; width: 100%; height: 100%; transform-origin: 0 0; }
+.mapbox img { display: block; width: 100%; height: 100%; }
+/* medal thresholds under the name of a species */
+.trow .thr { display: block; color: var(--muted); font-weight: 400; font-size: 12.5px; margin-top: 2px; }
+.trow .name > b, .sp-open { cursor: pointer; }
+.trow .name > b:hover, .sp-open:hover { color: var(--focus); }
+/* album of the rare furs */
+.agrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 10px; margin-top: 10px; }
+.acard { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 12px; }
+.acard h3 { display: flex; align-items: center; gap: 8px; margin: 0 0 6px; font: 600 15px "Barlow", sans-serif; }
+.acard h3 .icon, .acard h3 .hex, .acard h3 .rare { width: 24px; height: 26px; }
+.acard h3 small { margin-left: auto; color: var(--muted); font-weight: 400; font-size: 12.5px; }
+.afur { display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; font: inherit; font-size: 13.5px; padding: 5px 8px; margin-top: 4px; background: var(--panel-2); border: 1px solid var(--line); border-radius: var(--radius); color: var(--muted); cursor: pointer; }
+.afur:hover { border-color: var(--accent); }
+.afur .st { width: 14px; text-align: center; }
+.afur.got, .afur.hand { color: var(--text); }
+.afur.got { border-color: #5b6066; }
+.afur.got .st { color: #fff; }
+.afur.hand { border-style: dashed; border-color: #5b6066; }
+.afur.hand .st { color: var(--focus); }
+.afur small { margin-left: auto; color: var(--muted); font-size: 12px; white-space: nowrap; }
+.afur.got:hover { border-color: #5b6066; cursor: default; }
+#aSearch { font: inherit; color: var(--text); background: var(--panel-2); border: 1px solid var(--line); border-radius: var(--radius); padding: 7px 10px; min-width: 220px; }
+/* species sheet */
+.sheet { position: fixed; inset: 0; z-index: 50; background: rgba(0,0,0,.66); display: flex; align-items: flex-start; justify-content: center; overflow: auto; padding: 40px 16px; }
+.sheet[hidden] { display: none; }
+.sheetbox { position: relative; width: min(920px, 100%); background: var(--bg); border: 1px solid var(--line); border-radius: var(--radius); padding: 20px 22px 26px; }
+.sheetx { position: absolute; top: 10px; right: 12px; width: 34px; height: 34px; cursor: pointer; font-size: 22px; line-height: 1; color: var(--text); background: var(--panel-2); border: 1px solid var(--line); border-radius: var(--radius); }
+.sheetx:hover { border-color: var(--accent); }
+.sheethead { display: flex; align-items: center; gap: 12px; margin: 0 40px 14px 0; }
+.sheethead .icon, .sheethead .hex, .sheethead .rare { width: 44px; height: 48px; }
+.sheethead h2 { margin: 0; font-size: 24px; }
+.sheethead small { display: block; color: var(--muted); font-size: 14px; }
+.thrs { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 14px; }
+.thrs span { display: inline-flex; align-items: center; gap: 6px; padding: 4px 9px; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); font-size: 13.5px; }
+.thrs .dot { flex: none; width: 10px; height: 10px; border-radius: 50%; }
+.sheet section { margin-top: 16px; }
+.recapbox { width: min(1240px, 100%); }
+#recapCv { display: block; width: 100%; height: auto; border: 1px solid var(--line); }
+/* links to the map: a dot for an exact position, a dashed ring for an estimated zone */
+.maplink { color: inherit; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+.maplink:hover { color: var(--focus); text-decoration: underline; text-underline-offset: 3px; }
+.maplink svg { width: 12px; height: 12px; flex: none; color: var(--muted); }
+.maplink.exact svg { color: var(--accent); }
+.hrow.link { cursor: pointer; }
+.hrow.link:hover .hl { color: var(--focus); }
+.mapbox .pin.focus::after { content: ""; position: absolute; left: 50%; top: 50%; width: 46px; height: 46px; margin: -23px 0 0 -23px; border: 2px solid var(--focus); border-radius: 50%; pointer-events: none; opacity: 0; animation: ping 1.2s ease-out 4; }
+@keyframes ping { from { transform: scale(.4); opacity: 1; } to { transform: scale(1.5); opacity: 0; } }
+/* timer of the challenge: its state and actions, under its settings */
+.tpanel .tnow { font: 600 22px "Barlow Condensed", sans-serif; letter-spacing: .03em; font-variant-numeric: tabular-nums; }
+.tpanel .tnow small { display: block; font: 400 14px "Barlow", sans-serif; color: var(--muted); letter-spacing: 0; }
+.tpanel .trow2 { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 10px; }
+.tpanel input { font: inherit; color: var(--text); background: var(--panel-2); border: 1px solid var(--line); border-radius: var(--radius); padding: 7px 10px; width: 120px; font-variant-numeric: tabular-nums; }
+.mapbox .badge.focus { border-style: solid; box-shadow: 0 0 0 3px rgba(243,178,79,.45); }
+/* filters of the map */
+.mfilters { display: grid; gap: 8px; margin: 2px 0 8px; }
+.mfrow { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+.mflabel { min-width: 92px; color: var(--muted); font: 600 14px "Barlow Condensed", sans-serif; letter-spacing: .05em; text-transform: uppercase; }
+.chips { display: flex; flex-wrap: wrap; gap: 5px; flex: 1; }
+.fchip { display: inline-flex; align-items: center; gap: 5px; cursor: pointer; font: inherit; font-size: 13.5px; padding: 2px 8px 2px 5px; background: var(--panel-2); border: 1px solid var(--line); border-radius: var(--radius); color: var(--text); }
+.fchip:hover { border-color: var(--accent); }
+.fchip:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.fchip.off { opacity: .38; }
+.fchip .dot { flex: none; width: 10px; height: 10px; border-radius: 50%; }
+.fchip .icon, .fchip .hex { width: 18px; height: 20px; }
+.fchip small { color: var(--muted); font-size: 12px; }
+.fchip.link { padding: 2px 8px; color: var(--muted); }
+.mdates input { font: inherit; color: var(--text); background: var(--panel-2); border: 1px solid var(--line); border-radius: var(--radius); padding: 6px 8px; color-scheme: dark; }
+/* zoom tiles of the game over the map, the finer level on top */
+.mapbox #mTiles { position: absolute; inset: 0; z-index: 0; pointer-events: none; }
+.mapbox #mTiles img { position: absolute; }
+.mapctl { position: absolute; z-index: 4; top: 10px; right: 10px; display: flex; flex-direction: column; gap: 4px; }
+.mapctl button { width: 34px; height: 34px; cursor: pointer; font: 600 19px/1 "Barlow", sans-serif; color: var(--text); background: rgba(20,22,24,.9); border: 1px solid var(--line); border-radius: var(--radius); }
+.mapctl button:hover { border-color: var(--accent); }
+/* pins and badges keep their size on screen whatever the zoom */
+.mapbox .pin { position: absolute; transform: translate(-50%, -50%) scale(var(--inv, 1)); cursor: pointer; filter: drop-shadow(0 1px 2px rgba(0,0,0,.9)); }
+.mapbox .pin .icon, .mapbox .pin .hex { width: 24px; height: 26px; }
+.mapbox .pin:hover, .mapbox .pin:focus-visible { z-index: 2; outline: none; transform: translate(-50%, -50%) scale(calc(1.35 * var(--inv, 1))); }
+.maptip { position: absolute; z-index: 3; pointer-events: none; background: rgba(20,22,24,.96); border: 1px solid var(--line); border-radius: var(--radius); padding: 8px 10px; font-size: 13.5px; line-height: 1.45; white-space: nowrap; }
+.maptip b { display: block; font-size: 14.5px; }
+/* estimated zones: harvests of the hunting log, known by their region only */
+.mapbox.loading #mPins, .mapbox.loading #mBadges, .mapbox.loading svg.zones { visibility: hidden; }
+.mapbox svg.zones { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.mapbox svg.zones .zone polygon { fill: rgba(236,154,30,.07); stroke: rgba(243,178,79,.9); stroke-width: 1.5; stroke-dasharray: 5 4; vector-effect: non-scaling-stroke; transition: fill .12s; }
+.mapbox svg.zones .zone polygon.hole { fill: none; stroke: rgba(243,178,79,.45); stroke-width: 1; }
+.mapbox svg.zones .zone { transition: opacity .12s; }
+.mapbox svg.zones.dim .zone { opacity: .2; }
+.mapbox svg.zones .zone.on { opacity: 1; }
+.mapbox svg.zones .zone.on polygon:not(.hole) { fill: rgba(243,178,79,.28); stroke: #ffd38a; stroke-width: 2.5; stroke-dasharray: none; }
+.mapbox .badge { position: absolute; transform: translate(-50%, -50%) scale(var(--inv, 1)); min-width: 24px; padding: 1px 7px; border-radius: 12px; background: rgba(20,22,24,.88); border: 1px dashed var(--focus); color: var(--text); font: 600 13px "Barlow", sans-serif; text-align: center; cursor: default; }
+.mapbox .badge:hover, .mapbox .badge:focus-visible { z-index: 2; outline: none; border-style: solid; }
 /* rare fur: a white star over the corner of the icon, which keeps the colour of the medal */
 .rare { position: relative; display: inline-block; flex: none; vertical-align: middle; }
 .rare.hex { clip-path: none; background: none; width: auto; height: auto; }
@@ -186,10 +281,11 @@ table.recent .rare { margin-right: 8px; }
 .trow .fur { display: block; color: var(--text); font-weight: 400; font-size: 13px; margin-top: 2px; }
 td.fur-rare { font-weight: 600; }
 td .odds { margin-left: 8px; color: var(--muted); font-weight: 400; font-size: 12.5px; white-space: nowrap; }
-@media (max-width: 760px) { .stats { padding-left: 16px; padding-right: 16px; } .hrow { grid-template-columns: minmax(0, 110px) minmax(0, 1fr) 52px; } }
+@media (max-width: 760px) { .stats, .mapview, .album { padding-left: 16px; padding-right: 16px; } .hrow { grid-template-columns: minmax(0, 110px) minmax(0, 1fr) 52px; } }
 .keep { background: #3a2c14; border-left: 4px solid var(--accent); padding: 10px 14px; margin: 0 0 18px; font-weight: 600; }
 .tbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; margin: 18px 0 6px; }
 .tbar label { display: flex; align-items: center; gap: 10px; font-weight: 600; }
+.tbar .seg label { display: block; }
 select { font: inherit; color: var(--text); background: var(--panel-2); border: 1px solid var(--line); border-radius: var(--radius); padding: 7px 10px; color-scheme: dark; }
 select:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
 .muted { color: var(--muted); font-size: 13.5px; }
@@ -225,7 +321,7 @@ table.recent .icon { margin-right: 8px; }
 <header class="top">
   <h1><span class="mark">COTW</span>GoldChallenge</h1>
   <span class="credit" id="credit"></span>
-  <nav class="tabs" role="tablist"><button class="tab on" id="tabSettings" type="button" role="tab"></button><button class="tab" id="tabTrophies" type="button" role="tab"></button><button class="tab" id="tabStats" type="button" role="tab"></button></nav>
+  <nav class="tabs" role="tablist"><button class="tab on" id="tabSettings" type="button" role="tab"></button><button class="tab" id="tabTrophies" type="button" role="tab"></button><button class="tab" id="tabStats" type="button" role="tab"></button><button class="tab" id="tabMap" type="button" role="tab"></button><button class="tab" id="tabAlbum" type="button" role="tab"></button></nav>
 </header>
 <div class="troph" id="troph">
   <h2 id="tTitle" style="font-size:22px;margin:0 0 12px"></h2>
@@ -242,10 +338,42 @@ table.recent .icon { margin-right: 8px; }
     <div class="group" id="tList" style="border-top:1px solid var(--line)"></div>
   </div>
 </div>
+<div class="album" id="album">
+  <h2 id="aTitle" style="font-size:22px;margin:0 0 12px"></h2>
+  <p class="intro" id="aNote" style="max-width:80ch"></p>
+  <div class="tbar">
+    <input type="search" id="aSearch">
+    <div class="seg row" id="aShow" role="radiogroup"><input type="radio" name="aShow" id="aS_all" checked><label for="aS_all" id="aL_all"></label><input type="radio" name="aShow" id="aS_have"><label for="aS_have" id="aL_have"></label><input type="radio" name="aShow" id="aS_miss"><label for="aS_miss" id="aL_miss"></label></div>
+  </div>
+  <p class="muted" id="aCount"></p>
+  <div class="agrid" id="aGrid"></div>
+</div>
+<div class="sheet" id="recap" hidden><div class="sheetbox recapbox" role="dialog" aria-modal="true"><button class="sheetx" id="recapX" type="button">&times;</button>
+  <div class="tbar" style="margin:0 44px 12px 0"><div class="seg row" role="radiogroup"><input type="radio" name="rPeriod" id="rP_all" checked><label for="rP_all" id="rL_all"></label><input type="radio" name="rPeriod" id="rP_sess"><label for="rP_sess" id="rL_sess"></label></div><button class="btn primary" type="button" id="rPng"></button></div>
+  <canvas id="recapCv" width="1600" height="900"></canvas></div></div>
+<div class="sheet" id="sheet" hidden><div class="sheetbox" role="dialog" aria-modal="true"><button class="sheetx" id="sheetX" type="button">&times;</button><div id="sheetBody"></div></div></div>
+<div class="mapview" id="mapview">
+  <h2 id="mTitle" style="font-size:22px;margin:0 0 12px"></h2>
+  <p class="intro" id="mNote" style="max-width:80ch"></p>
+  <div class="tbar">
+    <label><span id="mResLabel"></span> <select id="mRes"></select></label>
+    <div class="seg row" id="mRange" role="radiogroup"><input type="radio" name="mRange" id="mR_since" checked><label for="mR_since" id="mL_since"></label><input type="radio" name="mRange" id="mR_all"><label for="mR_all" id="mL_all"></label><input type="radio" name="mRange" id="mR_dates"><label for="mR_dates" id="mL_dates"></label></div>
+    <span class="mdates" id="mDates" hidden><input type="date" id="mFrom"> <span id="mToLabel"></span> <input type="date" id="mTo"></span>
+  </div>
+  <div class="mfilters">
+    <div class="mfrow"><span class="mflabel" id="mMedalsLabel"></span><div class="chips" id="mMedals"></div></div>
+    <div class="mfrow"><span class="mflabel" id="mFurLabel"></span><select id="mFur"></select></div>
+    <div class="mfrow"><span class="mflabel" id="mSpLabel"></span><div class="chips" id="mSpChips"></div></div>
+  </div>
+  <p class="muted" id="mCount"></p>
+  <label class="check" style="margin:6px 0"><input type="checkbox" id="mZonesOn" checked> <span id="mZonesLabel"></span></label>
+  <div class="mapbox" id="mapbox"><div class="mapinner" id="mView"><img id="mImg" alt="" draggable="false"><div id="mTiles"></div><svg class="zones" id="mZones" viewBox="0 0 1 1" preserveAspectRatio="none" aria-hidden="true"></svg><div id="mBadges"></div><div id="mPins"></div></div><div class="mapctl"><button type="button" id="mZin">+</button><button type="button" id="mZout">&minus;</button><button type="button" id="mZreset">&#x2922;</button><button type="button" id="mFull">&#x26F6;</button></div><div class="maptip" id="mTip" hidden></div></div>
+  <p class="muted" id="mHint"></p>
+</div>
 <div class="stats" id="stats">
   <h2 id="sTitle" style="font-size:22px;margin:0 0 12px"></h2>
   <p class="intro" id="sNote" style="max-width:80ch"></p>
-  <div class="seg row" id="sRange" role="radiogroup"><input type="radio" name="sRange" id="sR_since" checked><label for="sR_since" id="sL_since"></label><input type="radio" name="sRange" id="sR_all"><label for="sR_all" id="sL_all"></label></div>
+  <div class="tbar" style="margin-top:0"><div class="seg row" id="sRange" role="radiogroup"><input type="radio" name="sRange" id="sR_since" checked><label for="sR_since" id="sL_since"></label><input type="radio" name="sRange" id="sR_all"><label for="sR_all" id="sL_all"></label></div><button class="btn primary" type="button" id="sRecap"></button></div>
   <div class="tiles" id="sTiles"></div>
   <div id="sBody">
     <div class="sgrid">
@@ -328,9 +456,41 @@ fetch(api + "settings").then(r => r.json()).then(d => {
   $("sResT").textContent = T.page_by_reserve;
   $("sTopT").textContent = T.page_top_species;
   $("sRecentT").textContent = T.page_recent;
+  $("tabMap").textContent = T.page_tab_map;
+  $("tabAlbum").textContent = T.page_tab_album;
+  $("aTitle").textContent = T.page_tab_album;
+  $("aNote").textContent = T.page_album_note;
+  $("aSearch").placeholder = T.page_album_find;
+  $("aL_all").textContent = T.page_album_all;
+  $("aL_have").textContent = T.page_album_have;
+  $("aL_miss").textContent = T.page_album_miss;
+  $("sheetX").setAttribute("aria-label", T.page_sheet_close);
+  $("recapX").setAttribute("aria-label", T.page_sheet_close);
+  $("sRecap").textContent = T.page_recap_open;
+  $("rL_all").textContent = T.page_recap_all;
+  $("rL_sess").textContent = T.page_recap_sess;
+  $("rPng").textContent = T.page_recap_png;
+  $("mTitle").textContent = T.page_tab_map;
+  $("mNote").textContent = T.page_map_note;
+  $("mResLabel").textContent = T.page_reserve;
+  $("mSpLabel").textContent = T.page_col_species;
+  $("mMedalsLabel").textContent = T.page_medals;
+  $("mFurLabel").textContent = T.page_col_fur;
+  $("mL_dates").textContent = T.page_map_dates;
+  $("mToLabel").textContent = T.page_map_to;
+  $("mL_since").textContent = T.page_stats_since;
+  $("mL_all").textContent = T.page_stats_all;
+  $("mZonesLabel").textContent = T.page_map_zones;
+  $("mHint").textContent = T.page_map_hint;
+  for (const [id, k] of [["mZin", "page_map_zoomin"], ["mZout", "page_map_zoomout"], ["mZreset", "page_map_reset"], ["mFull", "page_map_full"]]) {
+    $(id).title = T[k];
+    $(id).setAttribute("aria-label", T[k]);
+  }
   loadIcons();
   build();
   updateLimits();
+  // the timer on: the whole screen, where it shows
+  if (values.timerOn === "1") $("v_full").checked = true;
   draw();
 });
 
@@ -348,6 +508,7 @@ function build() {
     const box = document.createElement("div");
     box.className = "group";
     fields.forEach(f => box.appendChild(control(f)));
+    if (k === "b:timer") box.appendChild(timerPanel());
     sec.append(banner, box);
     $(k.startsWith("a:") ? "formAdv" : "form").appendChild(sec);
   }
@@ -400,11 +561,14 @@ function control(f) {
     input.className = "range";
     input.innerHTML = '<input type="range" aria-label="' + f.label + '"><input type="number" id="' + id + '">';
     const [r, n] = input.querySelectorAll("input");
-    for (const e of [r, n]) Object.assign(e, { min: f.min, max: f.max, step: f.step || 1, value: v });
+    // a bound of 0 is left out of the data: min 0 by default
+    for (const e of [r, n]) Object.assign(e, { min: f.min ?? 0, max: f.max, step: f.step || 1, value: v });
     sliders[f.key] = { r, n };
     const apply = v => {
-      const L = limits()[f.key];
+      // the overlay position has limits that depend on its size; the other sliders their own
+      const L = limits()[f.key] || { min: f.min ?? 0, max: f.max ?? Infinity };
       v = Math.min(L.max, Math.max(L.min, Number(v)));
+      if (isNaN(v)) return;
       r.value = v; if (Number(n.value) !== v) n.value = v;
       set(f.key, String(v));
     };
@@ -456,16 +620,20 @@ function keyControl(f, id, v) {
   const done = val => {
     if (stop) stop();
     stop = null;
+    keyWaiting = null;
     if (val !== undefined) set(f.key, val);
     show(values[f.key] ?? f.default);
   };
   change.onclick = () => {
     if (stop) return;
+    // another key control waiting: it stops waiting, so that a key goes to one setting only
+    if (keyWaiting) keyWaiting();
+    keyWaiting = () => done();
     cap.className = "keycap wait";
     cap.textContent = T.page_key_wait;
     const key = e => {
       e.preventDefault();
-      e.stopPropagation();
+      e.stopImmediatePropagation();
       if (e.key === "Escape") return done();
       if (!e.keyCode || e.keyCode === 229) return;
       done(e.keyCode + ":" + keyName(e));
@@ -493,6 +661,8 @@ function keyControl(f, id, v) {
   wrap.append(cap, change, clear);
   return wrap;
 }
+
+let keyWaiting = null; // stops the key control waiting for a key
 
 function keyName(e) {
   const c = e.code || "";
@@ -532,6 +702,8 @@ function dateControl(f, id, v) {
 
 function set(k, v) {
   values[k] = v;
+  // the timer is out of the zoomed view of the overlay: the preview shows the whole screen
+  if (k.startsWith("timer") && values.timerOn === "1") $("v_full").checked = true;
   refresh();
 }
 
@@ -571,13 +743,14 @@ function flash(el, text) {
 
 $("reset").onclick = () => {
   if (!confirm(data.text.page_reset_ask)) return;
-  for (const f of data.fields) values[f.key] = f.default;
+  // the challenge start stays: its default is today, which would leave out every older harvest
+  for (const f of data.fields) if (f.key !== "since") values[f.key] = f.default;
   $("form").innerHTML = ""; $("formAdv").innerHTML = "";
   build();
   refresh();
 };
 $("close").onclick = () => {
-  (saveTimer ? save() : Promise.resolve()).finally(() => fetch(api + "close", { method: "POST" })).finally(() => {
+  (saveTimer ? save() : Promise.resolve()).finally(() => {
     document.body.classList.add("is-closed");
     window.close();
   });
@@ -593,17 +766,21 @@ const fmt = (s, ...a) => s.replace(/%d/g, () => a.shift());
 
 function showTab(name) {
   document.body.dataset.tab = name;
-  for (const [id, n] of [["tabSettings", "settings"], ["tabTrophies", "trophies"], ["tabStats", "stats"]]) {
+  for (const [id, n] of [["tabSettings", "settings"], ["tabTrophies", "trophies"], ["tabStats", "stats"], ["tabMap", "map"], ["tabAlbum", "album"]]) {
     $(id).classList.toggle("on", n === name);
     $(id).setAttribute("aria-selected", n === name);
   }
   if (name === "trophies") loadTrophies();
   else if (name === "stats") loadStats();
+  else if (name === "map") loadMap();
+  else if (name === "album") loadAlbum();
   else draw();
 }
 $("tabSettings").onclick = () => showTab("settings");
 $("tabTrophies").onclick = () => showTab("trophies");
 $("tabStats").onclick = () => showTab("stats");
+$("tabMap").onclick = () => showTab("map");
+$("tabAlbum").onclick = () => showTab("album");
 
 // medal counted for the challenge, from a level: -1 Great One (a diamond), 0 diamond .. 4 none
 function doneLevel(lv) {
@@ -696,7 +873,7 @@ function showTrophies() {
   sel.value = String(tReserve);
   $("tCount").textContent = fmt(T.page_recorded, d.recorded, d.manual);
   $("tMode").textContent = values.scope === "mega" ? T.page_mode_mega : T.page_mode_reserve;
-  const tiers = String(values.tiers || "DIAMOND,GOLD,SILVER,BRONZE").split(",");
+  const tiers = tierNames();
   const res = d.reserves.find(r => r.n === tReserve);
   showOverview(d);
   const focus = document.activeElement && document.activeElement.id;
@@ -711,6 +888,14 @@ const GREAT_ONE = 5;
 const RARE_FUR = 2; // rarity of a rare fur: 2 rare, 3 very rare
 const level = r => r === GREAT_ONE ? -1 : r;
 const rankName = (r, tiers) => r === GREAT_ONE ? data.text.page_great_one : r < 4 ? tiers[r] : data.text.page_rank_none;
+// names of the medals of the settings, as written in the page: "Diamant"
+function tierNames() {
+  const given = String(values.tiers || "").split(","), def = String(data.fields.find(f => f.key === "tiers").default).split(",");
+  return [0, 1, 2, 3].map(i => {
+    const s = (given[i] || "").trim() || def[i] || "";
+    return s.charAt(0) + s.slice(1).toLowerCase();
+  });
+}
 
 // choices: none, bronze .. diamond, Great One; those not better than the medal found are disabled
 function trophyRow(sp, n, tiers) {
@@ -719,16 +904,24 @@ function trophyRow(sp, n, tiers) {
   const best = Math.min(level(sp.detected), level(sp.manual));
   const furs = sp.furs || [];
   const hex = speciesIcon(sp.hash, best < 0 ? GREAT_ONE : best, furs.length > 0);
-  const name = el("span"); name.className = "name"; name.textContent = sp.name;
+  const name = el("span"); name.className = "name";
+  const nm = el("b"); nm.textContent = sp.name; nm.title = T.page_sheet_open;
+  nm.onclick = () => openSheet(sp.hash);
+  name.appendChild(nm);
   const cls = el("span"); cls.className = "cls"; cls.textContent = sp.cls;
   name.appendChild(cls);
   if (furs.length) {
     const f = el("span"); f.className = "fur"; f.textContent = "★ " + furs.join(", ");
     name.appendChild(f);
   }
+  if (sp.t && sp.t[1] > 0) {
+    const th = el("span"); th.className = "thr"; th.title = T.page_sheet_medals;
+    th.textContent = [2, 1, 0].map(i => tiers[i] + " " + scoreText(sp.t[2 - i])).join(" · ");
+    name.appendChild(th);
+  }
   const det = el("span"); det.className = "det";
   det.textContent = sp.detected === 4 ? "–" : rankName(sp.detected, tiers);
-  if (sp.detected !== 4) det.style.color = MEDAL[Math.max(level(sp.detected), 0)];
+  if (sp.detected !== 4) det.style.color = medalColor(sp.detected);
   const seg = el("div"); seg.className = "seg row";
   seg.setAttribute("role", "radiogroup");
   seg.setAttribute("aria-label", sp.name + " – " + T.page_by_hand);
@@ -741,6 +934,11 @@ function trophyRow(sp, n, tiers) {
     r.onchange = () => setTrophy(sp, n, rank);
     const l = el("label"); l.htmlFor = id; l.textContent = rankName(rank, tiers);
     seg.append(r, l);
+  }
+  if (sp.detected !== 4 && sp.here) {
+    const text = det.textContent;
+    det.textContent = "";
+    det.append(mapLink(text, null, () => openOnMap({ r: n, s: sp.hash, all: true })));
   }
   row.append(hex, name, det, seg);
   return row;
@@ -762,6 +960,8 @@ function loadIcons() {
     icons = d || {};
     if (document.body.dataset.tab === "trophies" && trophies) showTrophies();
     if (document.body.dataset.tab === "stats" && harvests) showStats();
+    if (document.body.dataset.tab === "map" && harvests) showMap();
+    if (document.body.dataset.tab === "album" && harvests) showAlbum();
   }).catch(() => {});
 }
 
@@ -813,6 +1013,7 @@ function hbars(box, rows) {
     const row = document.createElement("div");
     row.className = "hrow";
     row.title = r.label + " : " + r.n + " (" + Math.round(100 * r.n / Math.max(total, 1)) + " %)";
+    if (r.go) { row.classList.add("link"); row.onclick = r.go; row.title += " – " + data.text.page_map_see; }
     const l = document.createElement("span"); l.className = "hl";
     if (r.icon) l.appendChild(r.icon);
     else if (r.color) { const sw = document.createElement("span"); sw.className = "sw"; sw.style.background = r.color; l.appendChild(sw); }
@@ -834,7 +1035,7 @@ function showStats() {
   $("sRange").hidden = !since;
   const all = !since || $("sR_all").checked;
   // medal names as written in the settings, usually in capitals: "Diamant" reads better here
-  const tiers = String(values.tiers || "DIAMOND,GOLD,SILVER,BRONZE").split(",").map(s => s.charAt(0) + s.slice(1).toLowerCase());
+  const tiers = tierNames();
   const list = d.harvests.filter(h => all || h.t >= since).sort((a, b) => b.t - a.t);
   const count = f => list.filter(f).length;
   const tiles = [
@@ -867,9 +1068,9 @@ function showStats() {
     return [...m.entries()].sort((a, b) => b[1] - a[1]);
   };
   const resName = r => d.reserves[r] || T.page_unknown;
-  hbars($("sRes"), by(h => h.r).map(([r, n]) => ({ label: resName(r), n })));
+  hbars($("sRes"), by(h => h.r).map(([r, n]) => ({ label: resName(r), n, go: d.reserves[r] ? () => openOnMap({ r: Number(r), all: !since || $("sR_all").checked, period: true }) : null })));
   const bestOf = s => list.filter(h => h.s === s).reduce((b, h) => level(h.rank) < level(b) ? h.rank : b, 4);
-  hbars($("sTop"), by(h => h.s).slice(0, 10).map(([s, n]) => ({ label: d.species[s] || "?", n, icon: speciesIcon(s, bestOf(s)) })));
+  hbars($("sTop"), by(h => h.s).slice(0, 10).map(([s, n]) => ({ label: d.species[s] || "?", n, icon: speciesIcon(s, bestOf(s)), go: () => openSheet(Number(s)) })));
   // last harvests
   harvestTable($("sRecent"), list.slice(0, 20), tiers, resName);
   // rare furs of the period, all of them
@@ -905,19 +1106,938 @@ function harvestTable(tb, rows, tiers, resName, odds) {
     const cells = [date.format(new Date(h.t * 1000)), d.species[h.s] || "?", (rare ? "★ " : "") + (h.fur || "–"), h.score.toFixed(2), rankName(h.rank, tiers), resName(h.r)];
     cells.forEach((c, i) => {
       const td = tr.insertCell(); td.textContent = c;
-      if (i === 1) td.prepend(speciesIcon(h.s, h.rank, rare));
+      if (i === 1) {
+        td.prepend(speciesIcon(h.s, h.rank, rare));
+        td.classList.add("sp-open");
+        td.title = data.text.page_sheet_open;
+        td.onclick = () => openSheet(h.s);
+      }
       if (i === 2 && rare) td.className = "fur-rare";
       if (i === 2 && h.fur && odds) {
         const o = document.createElement("span"); o.className = "odds"; o.textContent = oddsText(h.odds);
         td.append(o);
       }
       if (i === 3) td.className = "num";
+      if (i === 5 && d.reserves[h.r] && (h.x || h.y || h.g)) {
+        td.textContent = "";
+        td.append(mapLink(c, h.x || h.y, () => openOnMap(h)));
+      }
       if (i === 4) {
         const sw = document.createElement("span"); sw.className = "sw"; sw.style.background = medalColor(h.rank);
         sw.style.display = "inline-block"; sw.style.margin = "0 8px -1px 0";
         td.prepend(sw);
       }
     });
+  }
+}
+
+/* ---- album of the rare furs, and species sheet ---- */
+const scoreNf = () => new Intl.NumberFormat(data.lang, { maximumFractionDigits: 2 });
+const scoreText = v => scoreNf().format(v);
+
+// the harvests, loaded once for the tabs that need them
+function withHarvests(then) {
+  if (harvests) return then();
+  fetch(api + "harvests")
+    .then(r => r.ok ? r.json() : r.text().then(t => Promise.reject(t)))
+    .then(d => { harvests = d; then(); })
+    .catch(e => { $("aCount").textContent = String(e).trim(); });
+}
+
+function loadAlbum() {
+  fetch(api + "harvests")
+    .then(r => r.ok ? r.json() : r.text().then(t => Promise.reject(t)))
+    .then(d => { harvests = d; showAlbum(); })
+    .catch(e => { $("aCount").textContent = String(e).trim(); });
+}
+$("aSearch").oninput = $("aS_all").onchange = $("aS_have").onchange = $("aS_miss").onchange = () => showAlbum();
+
+// state of each rare fur: harvested (the first time), ticked by hand, or missing
+function furState(species, fur) {
+  const d = harvests, first = d.harvests.filter(h => h.s === species && h.fur === fur.n).sort((a, b) => a.t - b.t)[0];
+  if (first) return { got: first };
+  return { hand: d.album.some(([s, f]) => s === species && f === fur.h) };
+}
+
+// a rare fur of the album: ticked by hand on a click, unless harvested
+function furButton(species, fur, redraw) {
+  const T = data.text, st = furState(species, fur), b = document.createElement("button");
+  b.type = "button";
+  b.className = "afur" + (st.got ? " got" : st.hand ? " hand" : "");
+  const date = new Intl.DateTimeFormat(data.lang, { dateStyle: "medium" });
+  b.title = st.got ? fmt(T.page_album_got, date.format(new Date(st.got.t * 1000))) : st.hand ? T.page_album_hand : T.page_album_tick;
+  b.setAttribute("aria-pressed", String(!!(st.got || st.hand)));
+  const mark = document.createElement("span"); mark.className = "st"; mark.textContent = st.got || st.hand ? "★" : "☆";
+  const name = document.createElement("span"); name.textContent = fur.n + " · " + (fur.r >= 3 ? T.page_album_vrare : T.page_album_rare);
+  const odds = document.createElement("small"); odds.textContent = oddsText(fur.o);
+  b.append(mark, name, odds);
+  if (!st.got) b.onclick = () => {
+    fetch(api + "album", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ species, fur: fur.h, on: !st.hand }) })
+      .then(r => r.ok ? r.json() : r.text().then(t => Promise.reject(t)))
+      .then(() => {
+        const a = harvests.album.filter(([s, f]) => !(s === species && f === fur.h));
+        if (!st.hand) a.push([species, fur.h]);
+        harvests.album = a;
+        redraw();
+      })
+      .catch(e => alert(String(e).trim()));
+  };
+  return b;
+}
+
+function showAlbum() {
+  const T = data.text, d = harvests;
+  if (!d) return;
+  const q = $("aSearch").value.trim().toLowerCase(), have = $("aS_have").checked, miss = $("aS_miss").checked;
+  const grid = $("aGrid");
+  grid.innerHTML = "";
+  let got = 0, all = 0;
+  const species = Object.entries(d.info).filter(([, i]) => i.furs.length).map(([s, i]) => [Number(s), i, d.species[s] || "?"])
+    .sort((a, b) => a[2].localeCompare(b[2]));
+  for (const [s, info, name] of species) {
+    const states = info.furs.map(f => furState(s, f)), n = states.filter(st => st.got || st.hand).length;
+    got += n; all += info.furs.length;
+    if (q && !name.toLowerCase().includes(q)) continue;
+    if ((have && !n) || (miss && n === info.furs.length)) continue;
+    const card = document.createElement("div"); card.className = "acard";
+    const h = document.createElement("h3"); h.className = "sp-open"; h.title = T.page_sheet_open;
+    h.append(speciesIcon(s, 4, n > 0), name);
+    const c = document.createElement("small"); c.textContent = n + " / " + info.furs.length;
+    h.append(c);
+    h.onclick = () => openSheet(s);
+    card.append(h);
+    for (const f of info.furs) card.append(furButton(s, f, showAlbum));
+    grid.append(card);
+  }
+  $("aCount").textContent = fmt(T.page_album_count, got, all);
+}
+
+// sheet of a species: medals, harvests, reserves, rare furs, last harvests
+function openSheet(species) {
+  withHarvests(() => drawSheet(species));
+}
+
+function drawSheet(species) {
+  const T = data.text, d = harvests, info = d.info[species] || { cls: 0, go: false, t: [0, 0, 0], furs: [] };
+  const tiers = tierNames(), list = d.harvests.filter(h => h.s === species).sort((a, b) => b.t - a.t);
+  const best = list.reduce((b, h) => !b || level(h.rank) < level(b.rank) || (h.rank === b.rank && h.score > b.score) ? h : b, null);
+  const body = $("sheetBody"), el = t => document.createElement(t);
+  body.innerHTML = "";
+  const head = el("div"); head.className = "sheethead";
+  const title = el("div"), h2 = el("h2"), sub = el("small");
+  h2.textContent = d.species[species] || "?";
+  sub.textContent = fmt(T.page_sheet_class, info.cls) + (info.go ? " · " + T.page_sheet_go : "");
+  title.append(h2, sub);
+  head.append(speciesIcon(species, best ? best.rank : 4, list.some(h => h.rarity >= RARE_FUR)), title);
+  body.append(head);
+  // medals: lowest score of each
+  if (info.t[1] > 0) {
+    const thr = el("div"); thr.className = "thrs"; thr.title = T.page_sheet_medals;
+    for (const [r, v] of [[3, null], [2, info.t[0]], [1, info.t[1]], [0, info.t[2]]]) {
+      const s = el("span"), dot = el("span");
+      dot.className = "dot"; dot.style.background = medalColor(r);
+      s.append(dot, tiers[r] + (v === null ? " < " + scoreText(info.t[0]) : " ≥ " + scoreText(v)));
+      thr.append(s);
+    }
+    body.append(thr);
+  }
+  // tiles: harvests, best score, target medal since
+  const tiles = el("div"); tiles.className = "tiles";
+  const tile = (label, value, color) => {
+    const t = el("div"); t.className = "tile";
+    const v = el("b"); v.textContent = value; if (color) v.style.color = color;
+    const l = el("span"); l.textContent = label;
+    t.append(v, l); tiles.append(t);
+  };
+  const date = new Intl.DateTimeFormat(data.lang, { dateStyle: "medium" });
+  tile(T.page_sheet_harv, list.length);
+  if (best) tile(T.page_sheet_best, scoreText(best.score) + " · " + rankName(best.rank, tiers), medalColor(best.rank));
+  const firstDone = list.filter(h => doneLevel(level(h.rank))).sort((a, b) => a.t - b.t)[0];
+  if (firstDone) tile(T.page_sheet_first, date.format(new Date(firstDone.t * 1000)));
+  if (info.furs.length) tile(T.page_rare_furs, info.furs.filter(f => { const st = furState(species, f); return st.got || st.hand; }).length + " / " + info.furs.length);
+  body.append(tiles);
+  if (!list.length) {
+    const p = el("p"); p.className = "muted"; p.textContent = T.page_sheet_none;
+    body.append(p);
+  }
+  // reserves: harvests in each, to the map
+  if (list.length) {
+    const sec = el("section"), ban = el("span"), box = el("div");
+    ban.className = "banner"; ban.textContent = T.page_sheet_byres;
+    box.className = "group";
+    const by = new Map();
+    for (const h of list) by.set(h.r, (by.get(h.r) || 0) + 1);
+    hbars(box, [...by].sort((a, b) => b[1] - a[1]).map(([r, n]) => ({ label: d.reserves[r] || T.page_unknown, n,
+      go: d.reserves[r] ? () => { closeSheet(); openOnMap({ r, s: species, all: true }); } : null })));
+    sec.append(ban, box);
+    body.append(sec);
+  }
+  // rare furs
+  if (info.furs.length) {
+    const sec = el("section"), ban = el("span"), box = el("div");
+    ban.className = "banner"; ban.textContent = T.page_rare_furs;
+    box.className = "group"; box.style.padding = "6px 10px 10px";
+    for (const f of info.furs) box.append(furButton(species, f, () => drawSheet(species)));
+    sec.append(ban, box);
+    body.append(sec);
+  }
+  // last harvests
+  if (list.length) {
+    const sec = el("section"), ban = el("span"), wrap = el("div"), tb = el("table");
+    ban.className = "banner"; ban.textContent = T.page_recent;
+    wrap.className = "group tablewrap"; tb.className = "recent";
+    harvestTable(tb, list.slice(0, 15), tiers, r => d.reserves[r] || T.page_unknown);
+    wrap.append(tb); sec.append(ban, wrap); body.append(sec);
+  }
+  $("sheet").hidden = false;
+  $("sheetX").focus();
+}
+
+function closeSheet() { $("sheet").hidden = true; }
+$("sheetX").onclick = closeSheet;
+$("sheet").onclick = e => { if (e.target === $("sheet")) closeSheet(); };
+document.addEventListener("keydown", e => { if (e.key === "Escape" && !$("sheet").hidden) closeSheet(); });
+
+/* ---- recap of the challenge or of the last session, an image in the look of the page ---- */
+$("sRecap").onclick = () => openRecap();
+$("recapX").onclick = () => { $("recap").hidden = true; };
+$("recap").onclick = e => { if (e.target === $("recap")) $("recap").hidden = true; };
+$("rP_all").onchange = $("rP_sess").onchange = () => drawRecap();
+$("rPng").onclick = () => {
+  const a = document.createElement("a");
+  a.download = "cotwgoldchallenge-recap.png";
+  a.href = $("recapCv").toDataURL("image/png");
+  a.click();
+};
+document.addEventListener("keydown", e => { if (e.key === "Escape") $("recap").hidden = true; });
+let recapData = null;
+
+function openRecap() {
+  const q = new URLSearchParams({ since: values.since || "", scope: values.scope || "reserve" });
+  Promise.all([
+    fetch(api + "harvests").then(r => r.ok ? r.json() : r.text().then(t => Promise.reject(t))),
+    fetch(api + "trophies?" + q).then(r => r.ok ? r.json() : r.text().then(t => Promise.reject(t))),
+    fetch(api + "timer").then(r => r.ok ? r.json() : null).catch(() => null),
+  ]).then(([h, t, tm]) => {
+    harvests = h;
+    recapData = { trophies: t, timer: tm };
+    $("recap").hidden = false;
+    (document.fonts ? document.fonts.ready : Promise.resolve()).then(drawRecap);
+  }).catch(e => alert(String(e).trim()));
+}
+
+// the species done of the challenge, each at the first harvest that did it, and the total
+function challengeUnits() {
+  const d = harvests, t = recapData.trophies, mega = values.scope === "mega", since = sinceTime();
+  const need = new Set(), byHand = new Set();
+  for (const res of t.reserves) for (const sp of res.species) {
+    const k = mega ? String(sp.hash) : res.n + "/" + sp.hash;
+    need.add(k);
+    if (doneLevel(level(sp.manual))) byHand.add(k);
+  }
+  const first = new Map();
+  for (const h of d.harvests) {
+    if (h.t < since || !doneLevel(level(h.rank))) continue;
+    const k = mega ? String(h.s) : h.r + "/" + h.s;
+    if (need.has(k) && (!first.has(k) || h.t < first.get(k))) first.set(k, h.t);
+  }
+  for (const k of byHand) if (!first.has(k)) first.set(k, since);
+  return { events: [...first.values()].sort((a, b) => a - b), total: need.size };
+}
+
+// time of the challenge timer at a Unix time; null without a timer
+function timerAt(tm, t) {
+  if (!tm || !tm.elapsed) return null;
+  const counted = tm.sessions.reduce((n, [a, b]) => n + (b - a), 0);
+  let v = tm.elapsed - counted;
+  for (const [a, b] of tm.sessions) if (a < t) v += Math.min(b, t) - a;
+  return Math.max(v, 0);
+}
+
+// sessions of play: those of the timer, else harvests less than 1 h 30 apart
+function playSessions(tm, times) {
+  if (tm && tm.sessions.length) return tm.sessions.map(([a, b]) => [a, b]);
+  const out = [];
+  for (const t of [...times].sort((a, b) => a - b)) {
+    const l = out[out.length - 1];
+    if (l && t - l[1] <= 5400) l[1] = t; else out.push([t, t]);
+  }
+  return out.map(([a, b]) => [a - 1200, b + 600]);
+}
+
+function drawRecap() {
+  const T = data.text, d = harvests, tm = recapData.timer, cv = $("recapCv"), g = cv.getContext("2d");
+  const W = 1600, H = 900, session = $("rP_sess").checked, tiers = tierNames();
+  const since = sinceTime(), mega = values.scope === "mega";
+  const all = d.harvests.filter(h => h.t >= since);
+  const units = challengeUnits();
+  // the timer tells the sessions and the time when it covers the challenge (set by its estimate),
+  // else the sessions come from the harvests and the progress goes by dates
+  const firstT = all.length ? Math.min(...all.map(h => h.t)) : Infinity;
+  const timed = !!(tm && tm.elapsed && tm.sessions.length && tm.sessions[0][0] <= firstT + 3600);
+  const sessions = playSessions(timed ? tm : null, all.map(h => h.t)).filter(([a, b]) => b - a > 60);
+  let from = since, to = Math.floor(Date.now() / 1000);
+  if (session && sessions.length) [from, to] = sessions[sessions.length - 1];
+  const list = all.filter(h => h.t >= from && h.t <= to);
+  const events = units.events.filter(t => t >= from && t <= to);
+  const C = { bg: "#141618", panel: "#1c1f22", panel2: "#23272b", line: "#2f3439", text: "#e9e6df", muted: "#9ba1a6", accent: "#ec9a1e" };
+  const cond = (w, s) => w + " " + s + 'px "Barlow Condensed", sans-serif', body = (w, s) => w + " " + s + 'px "Barlow", sans-serif';
+  g.setTransform(1, 0, 0, 1, 0, 0);
+  g.fillStyle = C.bg; g.fillRect(0, 0, W, H);
+  g.textBaseline = "alphabetic";
+  // title
+  g.font = cond(600, 46); g.fillStyle = C.accent; g.fillText("COTW", 60, 86);
+  const lw = g.measureText("COTW").width;
+  g.fillStyle = C.text; g.fillText("GOLDCHALLENGE", 60 + lw, 86);
+  g.textAlign = "right";
+  g.font = cond(600, 34); g.fillStyle = C.text; g.fillText(session ? T.page_recap_ts : T.page_recap_t, W - 60, 70);
+  const date = new Intl.DateTimeFormat(data.lang, { dateStyle: "medium" }), dt = new Intl.DateTimeFormat(data.lang, { dateStyle: "medium", timeStyle: "short" });
+  const target = tiers[parseInt(values.tier ?? "1")] || "";
+  const period = session ? dt.format(new Date(from * 1000)) + " – " + new Intl.DateTimeFormat(data.lang, { timeStyle: "short" }).format(new Date(to * 1000))
+    : (since ? date.format(new Date(since * 1000)) : "") + " – " + date.format(new Date(to * 1000));
+  g.font = body(400, 20); g.fillStyle = C.muted;
+  g.fillText(period + "  ·  " + target + "  ·  " + (mega ? T.page_recap_mega : T.page_recap_res), W - 60, 100);
+  g.textAlign = "left";
+  g.fillStyle = C.accent; g.fillRect(60, 118, W - 120, 3);
+  // tiles
+  const tAt = t => timerAt(tm, t);
+  let time = null;
+  if (session) time = timed ? tAt(to) - tAt(from) : to - from;
+  else time = tAt(to);
+  const doneAll = units.events.filter(t => t <= to).length;
+  const tiles = [
+    [time === null ? "—" : clock(time), session ? T.page_recap_stime : time === null ? T.page_recap_notime : T.page_recap_time],
+    [(session ? "+" + events.length : doneAll + " / " + units.total), T.page_recap_done],
+    [String(list.length), T.page_harvests],
+    [time !== null && events.length ? clock(time / events.length) : "—", T.page_recap_avg],
+    [list.filter(h => h.rank === 0 || h.rank === GREAT_ONE).length + "  ◆   " + list.filter(h => h.rarity >= RARE_FUR).length + "  ★", tiers[0] + " · " + T.page_rare_furs],
+  ];
+  const tw = (W - 120 - 4 * 20) / 5;
+  tiles.forEach(([v, l], i) => {
+    const x = 60 + i * (tw + 20), y = 146;
+    g.fillStyle = C.panel; g.fillRect(x, y, tw, 112);
+    g.strokeStyle = C.line; g.lineWidth = 1; g.strokeRect(x + .5, y + .5, tw - 1, 111);
+    g.fillStyle = i === 1 ? C.accent : C.text; g.font = cond(600, 50); g.fillText(v, x + 18, y + 64);
+    g.fillStyle = C.muted; g.font = body(400, 18); g.fillText(l, x + 18, y + 94);
+  });
+  // a panel with its orange banner
+  const panel = (x, y, w, h, title) => {
+    g.fillStyle = C.accent; g.fillRect(x, y, w, 36);
+    g.fillStyle = "#1a1307"; g.font = cond(600, 21); g.fillText(title.toUpperCase(), x + 14, y + 25);
+    g.fillStyle = C.panel; g.fillRect(x, y + 36, w, h - 36);
+    g.strokeStyle = C.line; g.strokeRect(x + .5, y + 36.5, w - 1, h - 37);
+  };
+  // progress: species done over the time of the challenge (or the dates without a timer)
+  const px = 60, py = 290, pw = 920, ph = 560;
+  panel(px, py, pw, ph, T.page_recap_prog);
+  const ax = px + 70, ay = py + 70, aw = pw - 100, ah = ph - 130;
+  const useTimer = timed;
+  const xOf = t => useTimer ? tAt(t) : t, x0 = xOf(from), x1 = Math.max(xOf(to), x0 + 1);
+  const base = session ? units.events.filter(t => t < from).length : 0;
+  const ymax = Math.max(1, session ? base + events.length : units.total);
+  const X = v => ax + aw * (v - x0) / (x1 - x0), Y = n => ay + ah - ah * (n - (session ? base : 0)) / Math.max(1, ymax - (session ? base : 0));
+  g.strokeStyle = C.line; g.lineWidth = 1; g.fillStyle = C.muted; g.font = body(400, 15);
+  for (let i = 0; i <= 4; i++) {
+    const n = Math.round((session ? base : 0) + (ymax - (session ? base : 0)) * i / 4), y = Y(n);
+    g.beginPath(); g.moveTo(ax, y); g.lineTo(ax + aw, y); g.stroke();
+    g.textAlign = "right"; g.fillText(String(n), ax - 10, y + 5); g.textAlign = "left";
+  }
+  for (let i = 0; i <= 4; i++) {
+    const v = x0 + (x1 - x0) * i / 4, x = ax + aw * i / 4;
+    g.textAlign = i === 0 ? "left" : i === 4 ? "right" : "center";
+    g.fillText(useTimer ? clock(v - (session ? x0 : 0)) : date.format(new Date(v * 1000)), x, ay + ah + 26);
+  }
+  g.textAlign = "left";
+  const pts = [[X(x0), Y(base)]];
+  events.forEach((t, i) => { const x = X(xOf(t)); pts.push([x, Y(base + i)], [x, Y(base + i + 1)]); });
+  pts.push([X(x1), Y(base + events.length)]);
+  const grad = g.createLinearGradient(0, ay, 0, ay + ah);
+  grad.addColorStop(0, "rgba(236,154,30,.45)"); grad.addColorStop(1, "rgba(236,154,30,.02)");
+  g.beginPath(); g.moveTo(pts[0][0], ay + ah);
+  for (const [x, y] of pts) g.lineTo(x, y);
+  g.lineTo(pts[pts.length - 1][0], ay + ah); g.closePath(); g.fillStyle = grad; g.fill();
+  g.beginPath(); pts.forEach(([x, y], i) => i ? g.lineTo(x, y) : g.moveTo(x, y));
+  g.strokeStyle = C.accent; g.lineWidth = 3; g.stroke();
+  if (!list.length) { g.fillStyle = C.muted; g.font = body(400, 20); g.fillText(T.page_recap_none, ax + 20, ay + 40); }
+  // medals
+  const mx = 1020, my = 290, mw = 520, mh = 270;
+  panel(mx, my, mw, mh, T.page_medals);
+  const ranks = [GREAT_ONE, 0, 1, 2, 3, 4].map(r => [r, list.filter(h => h.rank === r).length]).filter(([r, n]) => n || r !== GREAT_ONE);
+  const mmax = Math.max(1, ...ranks.map(([, n]) => n)), rowH = (mh - 60) / ranks.length;
+  ranks.forEach(([r, n], i) => {
+    const y = my + 50 + i * rowH;
+    g.fillStyle = C.text; g.font = body(400, 17); g.fillText(rankName(r, tiers), mx + 16, y + rowH / 2 + 6);
+    const bw = (mw - 210) * n / mmax;
+    g.fillStyle = medalColor(r); g.fillRect(mx + 140, y + rowH / 2 - 8, Math.max(bw, n ? 3 : 0), 16);
+    g.fillStyle = C.muted; g.textAlign = "right"; g.fillText(String(n), mx + mw - 16, y + rowH / 2 + 6); g.textAlign = "left";
+  });
+  // harvests per session, or the species of the session
+  const bx = 1020, by = 580, bw = 520, bh = 270;
+  let bars;
+  if (session) {
+    const m = new Map();
+    for (const h of list) m.set(h.s, (m.get(h.s) || 0) + 1);
+    bars = [...m].sort((a, b) => b[1] - a[1]).slice(0, 7).map(([s, n]) => [d.species[s] || "?", n]);
+    panel(bx, by, bw, bh, T.page_recap_top);
+  } else {
+    const ss = sessions.filter(([a, b]) => b >= since).slice(-8);
+    bars = ss.map(([a, b]) => [new Intl.DateTimeFormat(data.lang, { day: "numeric", month: "short" }).format(new Date(a * 1000)), all.filter(h => h.t >= a && h.t <= b).length]);
+    panel(bx, by, bw, bh, T.page_recap_bys);
+  }
+  if (bars.length) {
+    if (session) {
+      const bmax = Math.max(1, ...bars.map(([, n]) => n)), rh = (bh - 60) / bars.length;
+      bars.forEach(([l, n], i) => {
+        const y = by + 50 + i * rh;
+        g.fillStyle = C.text; g.font = body(400, 16);
+        g.fillText(l.length > 20 ? l.slice(0, 19) + "…" : l, bx + 16, y + rh / 2 + 6);
+        g.fillStyle = C.accent; g.fillRect(bx + 210, y + rh / 2 - 7, (bw - 270) * n / bmax, 14);
+        g.fillStyle = C.muted; g.textAlign = "right"; g.fillText(String(n), bx + bw - 16, y + rh / 2 + 6); g.textAlign = "left";
+      });
+    } else {
+      const bmax = Math.max(1, ...bars.map(([, n]) => n)), cw = (bw - 40) / bars.length, top = by + 60, hh = bh - 110;
+      bars.forEach(([l, n], i) => {
+        const x = bx + 20 + i * cw, h = hh * n / bmax;
+        g.fillStyle = C.accent; g.fillRect(x + cw * .18, top + hh - h, cw * .64, h);
+        g.fillStyle = C.text; g.font = cond(600, 17); g.textAlign = "center";
+        g.fillText(String(n), x + cw / 2, top + hh - h - 6);
+        g.fillStyle = C.muted; g.font = body(400, 14); g.fillText(l, x + cw / 2, by + bh - 16);
+        g.textAlign = "left";
+      });
+    }
+  }
+  // foot
+  g.fillStyle = C.muted; g.font = body(400, 15);
+  g.fillText(fmt(T.page_recap_foot, dt.format(new Date())), 60, H - 18);
+}
+
+/* ---- map of the harvests whose position is known ---- */
+let mReserve = null;
+// what to show when the map opens: a harvest (r, t, s), a species of a reserve (r, s), a reserve (r)
+let mapFocus = null, mapHighlight = null;
+
+// a link to the map, with a dot (exact position), a dashed ring (estimated zone) or a folded map
+// (several harvests: exact is null)
+function mapLink(text, exact, go) {
+  const T = data.text, a = document.createElement("a");
+  a.href = "#";
+  a.className = "maplink" + (exact ? " exact" : "");
+  a.title = exact === null ? T.page_map_see : exact ? T.page_map_exact : T.page_map_estim;
+  a.innerHTML = exact === null
+    ? '<svg viewBox="0 0 12 12" aria-hidden="true"><path d="M1 2.5 4 1.2l4 1.3 3-1.3v8.3L8 10.8 4 9.5 1 10.8Z M4 1.2v8.3 M8 2.5v8.3" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round"/></svg>'
+    : exact
+    ? '<svg viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="2.4" fill="currentColor"/><circle cx="6" cy="6" r="5" fill="none" stroke="currentColor" stroke-width="1.2"/></svg>'
+    : '<svg viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="4.8" fill="none" stroke="currentColor" stroke-width="1.2" stroke-dasharray="2.2 1.8"/></svg>';
+  a.append(text);
+  a.onclick = e => { e.preventDefault(); go(); };
+  return a;
+}
+
+function openOnMap(f) {
+  closeSheet();
+  mReserve = f.r;
+  mapFilter.ranks.clear();
+  mapFilter.species.clear();
+  mapFilter.fur = "";
+  // the period: the whole history when the harvest is out of it, or the one of the statistics
+  const since = sinceTime();
+  if (f.period) $(f.all || !since ? "mR_all" : "mR_since").checked = true;
+  else if (f.all || (f.t !== undefined && ($("mR_dates").checked || ($("mR_since").checked && f.t < since)))) $("mR_all").checked = true;
+  // an estimated harvest is shown by its zone
+  if (f.t !== undefined) $("mZonesOn").checked = true;
+  mapFocus = f;
+  mapZoom.reserve = null;
+  showTab("map");
+}
+// filters: the medals, species and fur left out
+const mapFilter = { ranks: new Set(), species: new Set(), fur: "" };
+$("mR_since").onchange = $("mR_all").onchange = $("mR_dates").onchange = $("mFrom").onchange = $("mTo").onchange = () => showMap();
+$("mRes").onchange = () => { mReserve = Number($("mRes").value); mapFilter.species.clear(); showMap(); };
+$("mFur").onchange = () => { mapFilter.fur = $("mFur").value; showMap(); };
+
+// a chip of a filter: on or off, its count
+function filterChip(lead, label, n, off, toggle) {
+  const b = document.createElement("button");
+  b.type = "button";
+  b.className = "fchip" + (off ? " off" : "");
+  b.setAttribute("aria-pressed", String(!off));
+  if (lead) b.append(lead);
+  b.append(label + " ");
+  const c = document.createElement("small"); c.textContent = n;
+  b.append(c);
+  b.onclick = toggle;
+  return b;
+}
+
+// start of a day of a date field, in Unix seconds
+function dayStart(v, next) {
+  const m = /^(\d{4})-(\d\d)-(\d\d)$/.exec(v || "");
+  return m ? new Date(+m[1], m[2] - 1, +m[3] + (next ? 1 : 0)).getTime() / 1000 : null;
+}
+
+// the map image of a reserve, small, to know where the water is
+const mapPixels = {};
+function water(reserve, u, v) {
+  const p = mapPixels[reserve];
+  if (!p || u < 0 || v < 0 || u >= 1 || v >= 1) return false;
+  const i = (Math.floor(v * p.w) * p.w + Math.floor(u * p.w)) * 4, r = p.d[i], g = p.d[i + 1], b = p.d[i + 2];
+  return b > r + 18 && b >= g - 6 && b > 90;
+}
+$("mImg").onload = () => {
+  const img = $("mImg"), reserve = Number(new URL(img.src).searchParams.get("r"));
+  if (mapPixels[reserve]) return;
+  try {
+    const c = document.createElement("canvas"), w = 256;
+    c.width = c.height = w;
+    const g = c.getContext("2d");
+    g.drawImage(img, 0, 0, w, w);
+    mapPixels[reserve] = { w, d: g.getImageData(0, 0, w, w).data };
+    if (mReserve === reserve) showMap();
+  } catch (e) { /* the badges stay where they are */ }
+};
+
+function loadMap() {
+  fetch(api + "harvests")
+    .then(r => r.ok ? r.json() : r.text().then(t => Promise.reject(t)))
+    .then(d => { harvests = d; showMap(); })
+    .catch(e => { $("mCount").textContent = String(e).trim(); });
+}
+
+const zonesCache = {}; // reserve -> where its area played is on the map, and its regions
+const DEFAULT_FRAME = [0.25, 0.25, 0.5]; // left, top, scale
+
+function inPolygon(p, x, y) {
+  let in_ = false;
+  for (let i = 0, j = p.length - 1; i < p.length; j = i++) {
+    if ((p[i][1] > y) !== (p[j][1] > y) && x < (p[j][0] - p[i][0]) * (y - p[i][1]) / (p[j][1] - p[i][1]) + p[i][0]) in_ = !in_;
+  }
+  return in_;
+}
+
+function toEdge(p, x, y) {
+  let d = Infinity;
+  for (let i = 0, j = p.length - 1; i < p.length; j = i++) {
+    const ax = p[j][0], ay = p[j][1], dx = p[i][0] - ax, dy = p[i][1] - ay, l = dx * dx + dy * dy;
+    const t = l ? Math.max(0, Math.min(1, ((x - ax) * dx + (y - ay) * dy) / l)) : 0;
+    d = Math.min(d, Math.hypot(x - ax - t * dx, y - ay - t * dy));
+  }
+  return d;
+}
+
+function area(p) {
+  let a = 0;
+  for (let i = 0, j = p.length - 1; i < p.length; j = i++) a += (p[j][0] + p[i][0]) * (p[j][1] - p[i][1]);
+  return Math.abs(a / 2);
+}
+
+// the zones more precise than a zone, mostly inside it: a region of the hunting log is the most
+// precise one the hunter was in, so a harvest of the zone was made out of them
+function subZones(z, all) {
+  return all.filter(c => c.l > z.l && c.p.filter(q => inPolygon(z.p, q[0], q[1])).length * 2 > c.p.length);
+}
+
+// middle of a zone: the point inside its outline farthest from its edges (a zone can be bent),
+// searched on a grid of its bounds; out of the zones given (holes) and on land, if it can
+function zoneMiddle(z, over, land) {
+  const p = z.p, xs = p.map(q => q[0]), ys = p.map(q => q[1]);
+  const x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
+  const search = (others, ok) => {
+    let best = null, far = -1;
+    for (let i = 0; i <= 40; i++) for (let j = 0; j <= 40; j++) {
+      const x = x0 + (x1 - x0) * i / 40, y = y0 + (y1 - y0) * j / 40;
+      if (!inPolygon(p, x, y) || others.some(o => inPolygon(o.p, x, y)) || !ok(x, y)) continue;
+      const d = Math.min(toEdge(p, x, y), ...others.map(o => toEdge(o.p, x, y)));
+      if (d > far) { far = d; best = [x, y]; }
+    }
+    return best;
+  };
+  const any = () => true;
+  return search(over, land) || search(over, any) || search([], land) || search([], any) || z.c;
+}
+$("mZonesOn").onchange = () => showMap();
+
+/* ---- zoom and move on the map: the view is a square scaled and moved inside the box ---- */
+const mapZoom = { z: 1, x: 0, y: 0, reserve: null, fit: [0, 0, 1, 1] };
+function mapSize() {
+  const box = $("mapbox");
+  return { w: box.clientWidth, h: box.clientHeight, s: Math.min(box.clientWidth, box.clientHeight) };
+}
+function applyZoom() {
+  const { w, h, s } = mapSize(), m = mapZoom;
+  m.z = Math.min(12, Math.max(1, m.z));
+  const side = s * m.z;
+  // the map stays in the box: centred while smaller, else no empty edge
+  m.x = side <= w ? (w - side) / 2 : Math.min(0, Math.max(w - side, m.x));
+  m.y = side <= h ? (h - side) / 2 : Math.min(0, Math.max(h - side, m.y));
+  const v = $("mView");
+  v.style.width = v.style.height = s + "px";
+  v.style.transform = `translate(${m.x}px, ${m.y}px) scale(${m.z})`;
+  $("mapbox").style.setProperty("--inv", 1 / m.z);
+  clearTimeout(applyZoom.later);
+  applyZoom.later = setTimeout(loadTiles, 80);
+}
+
+// the zoom tiles seen, at the level that the zoom needs: level L has 2^(L+1) x 2^(L+1) tiles of 512 px
+function loadTiles() {
+  const layer = $("mTiles"), reserve = layer.dataset.reserve, m = mapZoom;
+  if (!reserve) return;
+  const { w, h, s } = mapSize(), px = s * m.z * (window.devicePixelRatio || 1);
+  let level = 0;
+  while (level < 3 && 1024 * (1 << level) < px * 0.9) level++;
+  if (!level) return;
+  const n = 2 << level, side = s * m.z;
+  const c0 = Math.max(0, Math.floor(-m.x / side * n)), c1 = Math.min(n - 1, Math.floor((w - m.x) / side * n));
+  const r0 = Math.max(0, Math.floor(-m.y / side * n)), r1 = Math.min(n - 1, Math.floor((h - m.y) / side * n));
+  for (let r = r0; r <= r1; r++) for (let c = c0; c <= c1; c++) {
+    const i = r * n + c, key = level + "/" + i;
+    if (layer.querySelector(`[data-k="${key}"]`)) continue;
+    const img = new Image();
+    img.dataset.k = key;
+    img.alt = "";
+    img.draggable = false;
+    // a hair wider, so that no seam shows between tiles
+    Object.assign(img.style, { left: 100 * c / n + "%", top: 100 * r / n + "%", width: `calc(${100 / n}% + 1px)`, height: `calc(${100 / n}% + 1px)`, zIndex: level, visibility: "hidden" });
+    img.onload = () => { img.style.visibility = ""; };
+    img.onerror = () => img.remove();
+    img.src = api + `tile?r=${reserve}&z=${level}&i=${i}`;
+    layer.append(img);
+  }
+}
+// zoom by a factor around a point of the box
+function zoomAt(f, cx, cy) {
+  const m = mapZoom, z = Math.min(12, Math.max(1, m.z * f));
+  m.x = cx - (cx - m.x) * z / m.z;
+  m.y = cy - (cy - m.y) * z / m.z;
+  m.z = z;
+  $("mTip").hidden = true;
+  applyZoom();
+}
+// the view that fits the reserve: its regions, a little margin around
+function resetZoom(fit) {
+  const { w, h, s } = mapSize(), m = mapZoom, [x0, y0, x1, y1] = fit || m.fit;
+  m.z = Math.min(12, Math.max(1, 0.94 / Math.max(x1 - x0, y1 - y0, 0.01)));
+  m.x = w / 2 - (x0 + x1) / 2 * s * m.z;
+  m.y = h / 2 - (y0 + y1) / 2 * s * m.z;
+  applyZoom();
+}
+(() => {
+  const box = $("mapbox"), at = e => { const r = box.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
+  box.addEventListener("wheel", e => {
+    e.preventDefault();
+    zoomAt(Math.exp(-e.deltaY * (e.deltaMode ? 0.05 : 0.0015)), ...at(e));
+  }, { passive: false });
+  box.addEventListener("dblclick", e => { if (!e.target.closest(".mapctl")) zoomAt(e.shiftKey ? 0.5 : 2, ...at(e)); });
+  // drag with a mouse or a finger, pinch with two fingers
+  const down = new Map();
+  let last = null;
+  box.addEventListener("pointerdown", e => {
+    if (e.button || e.target.closest(".mapctl")) return;
+    down.set(e.pointerId, at(e));
+    box.setPointerCapture(e.pointerId);
+    last = null;
+  });
+  box.addEventListener("pointermove", e => {
+    if (!down.has(e.pointerId)) return;
+    const prev = down.get(e.pointerId), now = at(e);
+    down.set(e.pointerId, now);
+    if (down.size === 1) {
+      box.classList.add("drag");
+      $("mTip").hidden = true;
+      mapZoom.x += now[0] - prev[0];
+      mapZoom.y += now[1] - prev[1];
+      applyZoom();
+    } else if (down.size === 2) {
+      const [a, b] = [...down.values()], d = Math.hypot(a[0] - b[0], a[1] - b[1]), c = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+      if (last) {
+        mapZoom.x += c[0] - last.c[0];
+        mapZoom.y += c[1] - last.c[1];
+        zoomAt(d / last.d, ...c);
+      }
+      last = { d, c };
+    }
+  });
+  const up = e => { down.delete(e.pointerId); last = null; if (!down.size) box.classList.remove("drag"); };
+  box.addEventListener("pointerup", up);
+  box.addEventListener("pointercancel", up);
+  const centre = () => { const { w, h } = mapSize(); return [w / 2, h / 2]; };
+  $("mZin").onclick = () => zoomAt(1.6, ...centre());
+  $("mZout").onclick = () => zoomAt(1 / 1.6, ...centre());
+  $("mZreset").onclick = () => resetZoom();
+  $("mFull").onclick = () => document.fullscreenElement ? document.exitFullscreen() : box.requestFullscreen().catch(() => {});
+  // the point in the middle stays there when the box changes size (window, full screen)
+  let size = null;
+  new ResizeObserver(() => {
+    const now = mapSize();
+    if (!now.s) return; // the tab hidden: the view stays for when it comes back
+    if (size && size.s) {
+      const k = now.s / size.s;
+      mapZoom.x = now.w / 2 - (size.w / 2 - mapZoom.x) * k;
+      mapZoom.y = now.h / 2 - (size.h / 2 - mapZoom.y) * k;
+    }
+    size = now;
+    applyZoom();
+  }).observe(box);
+})();
+
+function showMap() {
+  const T = data.text, d = harvests;
+  if (!d) return;
+  // period: since the challenge start, all, or dates
+  const since = sinceTime();
+  $("mR_since").hidden = $("mL_since").hidden = !since;
+  if (!since && $("mR_since").checked) $("mR_all").checked = true;
+  $("mDates").hidden = !$("mR_dates").checked;
+  let t0 = 0, t1 = Infinity;
+  if ($("mR_since").checked) t0 = since;
+  if ($("mR_dates").checked) {
+    t0 = dayStart($("mFrom").value) || 0;
+    t1 = dayStart($("mTo").value, true) || Infinity;
+  }
+  const placed = h => h.x || h.y;
+  // reserves: those of the game; the first shown is the one of the last harvest placed
+  const sel = $("mRes");
+  if (!sel.options.length) {
+    for (const [n, name] of Object.entries(d.reserves).sort((a, b) => a[1].localeCompare(b[1]))) sel.add(new Option(name, n));
+  }
+  if (mReserve === null) {
+    if (!sel.options.length) return;
+    const last = d.harvests.filter(h => placed(h) && d.reserves[h.r]).sort((a, b) => b.t - a.t)[0];
+    mReserve = last ? last.r : Number(sel.options[0].value);
+  }
+  sel.value = String(mReserve);
+  const inRes = d.harvests.filter(h => h.r === mReserve && h.t >= t0 && h.t < t1);
+  const tiers0 = tierNames();
+  const count = (l, f) => l.reduce((n, h) => n + (f(h) ? 1 : 0), 0);
+  // medals: those of the period, with their count
+  const medals = $("mMedals");
+  medals.innerHTML = "";
+  for (const r of [GREAT_ONE, 0, 1, 2, 3, 4]) {
+    const n = count(inRes, h => h.rank === r);
+    if (!n) continue;
+    const dot = document.createElement("span"); dot.className = "dot"; dot.style.background = medalColor(r);
+    medals.append(filterChip(dot, rankName(r, tiers0), n, mapFilter.ranks.has(r), () => {
+      mapFilter.ranks.has(r) ? mapFilter.ranks.delete(r) : mapFilter.ranks.add(r);
+      showMap();
+    }));
+  }
+  // furs: all, the rare ones, or one of those harvested
+  const furSel = $("mFur"), furs = new Map();
+  for (const h of inRes) if (h.fur) furs.set(h.fur, (furs.get(h.fur) || 0) + 1);
+  furSel.innerHTML = "";
+  furSel.add(new Option(T.page_map_allfurs, ""));
+  const rares = count(inRes, h => h.rarity >= RARE_FUR);
+  if (rares) furSel.add(new Option("★ " + T.page_rare_furs + " (" + rares + ")", "rare"));
+  for (const [f, n] of [...furs].sort((a, b) => b[1] - a[1])) furSel.add(new Option(f + " (" + n + ")", "f:" + f));
+  if (![...furSel.options].some(o => o.value === mapFilter.fur)) mapFilter.fur = "";
+  furSel.value = mapFilter.fur;
+  const furOK = h => !mapFilter.fur || (mapFilter.fur === "rare" ? h.rarity >= RARE_FUR : "f:" + h.fur === mapFilter.fur);
+  // species: chips with their icon; their count follows the other filters
+  const shown = inRes.filter(h => !mapFilter.ranks.has(h.rank) && furOK(h));
+  const spChips = $("mSpChips");
+  spChips.innerHTML = "";
+  const species = [...new Set(inRes.map(h => h.s))].map(s => [s, d.species[s] || "?"]).sort((a, b) => a[1].localeCompare(b[1]));
+  if (mapFocus && mapFocus.t === undefined && mapFocus.s !== undefined) {
+    for (const [s] of species) if (s !== mapFocus.s) mapFilter.species.add(s);
+  }
+  for (const [s, name] of species) {
+    spChips.append(filterChip(speciesIcon(s, 4, false), name, count(shown, h => h.s === s), mapFilter.species.has(s), () => {
+      mapFilter.species.has(s) ? mapFilter.species.delete(s) : mapFilter.species.add(s);
+      showMap();
+    }));
+  }
+  if (species.length > 1) {
+    for (const [label, hide] of [[T.page_map_all, false], [T.page_map_nosp, true]]) {
+      const b = document.createElement("button");
+      b.type = "button"; b.className = "fchip link"; b.textContent = label;
+      b.onclick = () => { mapFilter.species.clear(); if (hide) for (const [s] of species) mapFilter.species.add(s); showMap(); };
+      spChips.append(b);
+    }
+  }
+  const list = shown.filter(h => !mapFilter.species.has(h.s));
+  // regions of the reserve, loaded once
+  const reserve = mReserve;
+  if (!(reserve in zonesCache)) {
+    zonesCache[reserve] = null;
+    fetch(api + "zones?r=" + reserve).then(r => r.json()).then(m => {
+      zonesCache[reserve] = { f: m.f || DEFAULT_FRAME, z: m.z || [] };
+    }).catch(() => {
+      zonesCache[reserve] = { f: DEFAULT_FRAME, z: [] };
+    }).then(() => { if (mReserve === reserve) showMap(); });
+  }
+  const loaded = zonesCache[reserve] || { f: DEFAULT_FRAME, z: [] };
+  const zoneOf = {};
+  for (const z of loaded.z) zoneOf[z.h] = z;
+  const onMap = list.filter(placed);
+  const inZone = list.filter(h => !placed(h) && zoneOf[h.g]);
+  $("mCount").textContent = onMap.length || inZone.length ?
+    fmt(T.page_map_count, onMap.length, inZone.length, list.length - onMap.length - inZone.length) : inRes.length ? T.page_map_nomatch : T.page_map_none;
+  $("mImg").src = api + "map?r=" + reserve;
+  if ($("mTiles").dataset.reserve !== String(reserve)) {
+    $("mTiles").innerHTML = "";
+    $("mTiles").dataset.reserve = reserve;
+  }
+  // the view fits the reserve once its regions are known
+  const fitted = (zonesCache[reserve] ? "" : "?") + reserve;
+  if (mapZoom.reserve !== fitted) {
+    mapZoom.reserve = fitted;
+    const [l, t, sc] = loaded.f, xs = [], ys = [];
+    for (const z of loaded.z) for (const [x, y] of z.p) { xs.push(l + sc * x); ys.push(t + sc * y); }
+    if (!xs.length) xs.push(l, l + sc), ys.push(t, t + sc);
+    // the few points far out (a region of Revontuli has one) left out
+    const cut = v => { v.sort((a, b) => a - b); const n = Math.floor(v.length / 50); return [v[n], v[v.length - 1 - n]]; };
+    const [x0, x1] = cut(xs), [y0, y1] = cut(ys);
+    mapZoom.fit = [x0, y0, x1, y1];
+    resetZoom();
+  }
+  $("mapbox").classList.toggle("loading", !zonesCache[reserve]); // nothing placed before the border is known
+  // a position (0 to 1 over the area played) on the image
+  const [left, top, k] = loaded.f, ax = x => left + k * x, ay = y => top + k * y;
+  const atX = x => 100 * ax(x) + "%", atY = y => 100 * ay(y) + "%";
+  const tiers = tierNames();
+  const tip = $("mTip"), date = new Intl.DateTimeFormat(data.lang, { dateStyle: "short", timeStyle: "short" });
+  tip.hidden = true;
+  // a tooltip over an element of the map: a title, then lines
+  const hover = (el, title, lines, on, off) => {
+    const show = () => {
+      tip.innerHTML = "";
+      const b = document.createElement("b"); b.textContent = title;
+      tip.append(b);
+      lines.forEach((l, i) => { if (i) tip.append(document.createElement("br")); tip.append(l); });
+      tip.hidden = false;
+      const box = $("mapbox").getBoundingClientRect(), r = el.getBoundingClientRect();
+      const x = r.left - box.left + r.width / 2, y = r.top - box.top;
+      tip.style.left = Math.min(Math.max(4, x - tip.offsetWidth / 2), box.width - tip.offsetWidth - 4) + "px";
+      tip.style.top = (y - tip.offsetHeight - 6 < 4 ? y + r.height + 6 : y - tip.offsetHeight - 6) + "px";
+    };
+    el.tabIndex = 0;
+    el.onmouseenter = el.onfocus = () => { show(); if (on) on(); };
+    el.onmouseleave = el.onblur = () => { tip.hidden = true; if (off) off(); };
+  };
+  // estimated zones: the harvests of the hunting log, known by their region only
+  const svg = $("mZones"), badges = $("mBadges");
+  svg.innerHTML = "";
+  svg.classList.remove("dim");
+  badges.innerHTML = "";
+  if ($("mZonesOn").checked) {
+    const groups = new Map();
+    for (const h of inZone) groups.set(h.g, (groups.get(h.g) || []).concat(h));
+    const drawn = [...groups.keys()].map(g => zoneOf[g]);
+    const NS = "http://www.w3.org/2000/svg", defs = document.createElementNS(NS, "defs");
+    svg.append(defs);
+    const polygon = (z, cls) => {
+      const p = document.createElementNS(NS, "polygon");
+      p.setAttribute("points", z.p.map(([x, y]) => ax(x) + "," + ay(y)).join(" "));
+      if (cls) p.setAttribute("class", cls);
+      return p;
+    };
+    let n = 0;
+    for (const [g, hs] of groups) {
+      const z = zoneOf[g], subs = subZones(z, loaded.z), id = "mz" + n++;
+      // the zone without its more precise zones: a mask cuts them out, their outlines stay inside
+      const poly = document.createElementNS(NS, "g");
+      poly.setAttribute("class", "zone");
+      const outer = polygon(z);
+      if (subs.length) {
+        const mask = document.createElementNS(NS, "mask"), clip = document.createElementNS(NS, "clipPath");
+        mask.id = id + "m";
+        clip.id = id + "c";
+        mask.setAttribute("maskUnits", "userSpaceOnUse");
+        for (const a of ["x", "y"]) mask.setAttribute(a, "-1");
+        for (const a of ["width", "height"]) mask.setAttribute(a, "3");
+        const all = document.createElementNS(NS, "rect");
+        for (const [k2, v] of [["x", -1], ["y", -1], ["width", 3], ["height", 3], ["fill", "#fff"]]) all.setAttribute(k2, v);
+        mask.append(all);
+        for (const c of subs) {
+          const hole = polygon(c);
+          hole.setAttribute("fill", "#000");
+          mask.append(hole);
+        }
+        clip.append(polygon(z));
+        defs.append(mask, clip);
+        outer.setAttribute("mask", `url(#${mask.id})`);
+        poly.append(outer);
+        for (const c of subs) {
+          const hole = polygon(c, "hole");
+          hole.setAttribute("clip-path", `url(#${clip.id})`);
+          poly.append(hole);
+        }
+      } else poly.append(outer);
+      svg.append(poly);
+      const b = document.createElement("span");
+      b.className = "badge";
+      b.dataset.g = g;
+      b.textContent = hs.length;
+      const a = area(z.p);
+      const mid = zoneMiddle(z, [...new Set(subs.concat(drawn.filter(o => o !== z && area(o.p) < a)))], (x, y) => !water(reserve, ax(x), ay(y)));
+      b.style.left = atX(mid[0]);
+      b.style.top = atY(mid[1]);
+      // species of the zone: count and best medal
+      const bySp = new Map();
+      for (const h of hs) {
+        const o = bySp.get(h.s) || { n: 0, rank: 4, rare: false };
+        o.n++;
+        if (level(h.rank) < level(o.rank)) o.rank = h.rank;
+        o.rare = o.rare || h.rarity >= RARE_FUR;
+        bySp.set(h.s, o);
+      }
+      const lines = [...bySp.entries()].sort((a, b) => b[1].n - a[1].n)
+        .map(([s, o]) => (o.rare ? "★ " : "") + (d.species[s] || "?") + " ×" + o.n + " · " + rankName(o.rank, tiers));
+      // its zone stands out while the badge is hovered
+      hover(b, fmt(T.page_map_zone, hs.length), lines,
+        () => { svg.classList.add("dim"); poly.classList.add("on"); },
+        () => { svg.classList.remove("dim"); poly.classList.remove("on"); });
+      badges.append(b);
+      const pts = z.p.map(([x, y]) => [ax(x), ay(y)]);
+      b.fit = [Math.min(...pts.map(p => p[0])), Math.min(...pts.map(p => p[1])), Math.max(...pts.map(p => p[0])), Math.max(...pts.map(p => p[1]))];
+    }
+  }
+  // exact positions, oldest first so that the last harvests are on top
+  const pins = $("mPins");
+  pins.innerHTML = "";
+  for (const h of onMap.sort((a, b) => a.t - b.t)) {
+    const rare = h.rarity >= RARE_FUR;
+    const p = document.createElement("span");
+    p.className = "pin";
+    p.dataset.k = h.t + "/" + h.s;
+    p.at = [ax(h.x), ay(h.y)];
+    p.style.left = atX(h.x);
+    p.style.top = atY(h.y);
+    p.append(speciesIcon(h.s, h.rank, rare));
+    const lines = [rankName(h.rank, tiers) + " · " + h.score.toFixed(2)];
+    if (h.fur) lines.push((rare ? "★ " : "") + h.fur);
+    lines.push(date.format(new Date(h.t * 1000)));
+    hover(p, d.species[h.s] || "?", lines);
+    pins.append(p);
+  }
+  // the harvest asked for, once the regions are there: zoomed in, and pointed out for a while
+  if (mapFocus && zonesCache[reserve]) {
+    const f = mapFocus;
+    mapFocus = null;
+    // the map in sight, its filters just above
+    $("mCount").scrollIntoView({ block: "start" });
+    if (f.t !== undefined) {
+      const h = d.harvests.find(h => h.t === f.t && h.s === f.s);
+      mapHighlight = h && { key: placed(h) ? "p" + h.t + "/" + h.s : "g" + h.g, until: Date.now() + 6000, zoom: true };
+    } else resetZoom();
+  }
+  if (mapHighlight && Date.now() < mapHighlight.until) {
+    const k = mapHighlight.key, el = k[0] === "p" ? pins.querySelector(`[data-k="${k.slice(1)}"]`) : badges.querySelector(`[data-g="${k.slice(1)}"]`);
+    if (el) {
+      if (mapHighlight.zoom) {
+        mapHighlight.zoom = false;
+        const { w, h, s } = mapSize(), m = mapZoom;
+        if (el.at) {
+          m.z = Math.max(m.z, 5);
+          m.x = w / 2 - el.at[0] * s * m.z;
+          m.y = h / 2 - el.at[1] * s * m.z;
+          applyZoom();
+        } else {
+          resetZoom(el.fit);
+        }
+      }
+      el.classList.add("focus");
+      setTimeout(() => el.dispatchEvent(new MouseEvent("mouseenter")));
+    }
   }
 }
 
@@ -954,7 +2074,11 @@ function draw() {
   const g = cv.getContext("2d");
   g.setTransform(1, 0, 0, 1, 0, 0);
   g.clearRect(0, 0, cv.width, cv.height);
-  if (values.wall === "0") return;
+  if (values.wall === "0") {
+    g.setTransform(cv.width / 1280, 0, 0, cv.width / 1280, 0, 0);
+    drawTimer(g);
+    return;
+  }
   const list = isList();
   const b = list ? gridBounds() : megaBounds();
   const pos = place(b);
@@ -975,6 +2099,108 @@ function draw() {
   if (list) drawGrid(g, done); else drawMega(g);
   $("listNote").hidden = !(values.wall === "list" && !list);
   g.restore();
+  drawTimer(g);
+}
+
+// h:mm:ss of a number of seconds
+function clock(sec) {
+  sec = Math.max(0, Math.floor(sec));
+  const p = n => String(n).padStart(2, "0");
+  return Math.floor(sec / 3600) + ":" + p(Math.floor(sec / 60) % 60) + ":" + p(sec % 60);
+}
+
+// the challenge timer on the preview, as the mod draws it
+function drawTimer(g) {
+  if (values.timerOn !== "1") return;
+  const k = num("timerScale") || 1, st = timerState, sub = values.timerSub !== "0";
+  // size of the block, to place it from its corner as the mod does
+  g.save();
+  g.font = '600 30px "Barlow Condensed", sans-serif';
+  const main = clock(st ? st.elapsed : 34 * 3600 + 12 * 60 + 5);
+  let w = g.measureText(main + (st && st.paused ? "  II" : "")).width;
+  const subText = clock(st ? st.since : 83 * 60 + 45) + "  " + (values.timerSubText ?? data.fields.find(f => f.key === "timerSubText").default);
+  g.font = '600 17px "Barlow Condensed", sans-serif';
+  if (sub) w = Math.max(w, 2 + g.measureText(subText).width);
+  g.restore();
+  const bw = w * k, bh = (sub ? 32 + 20 : 34) * k, corner = values.timerCorner || "bl";
+  let x = corner[1] === "r" ? 1280 - bw - num("timerX") : num("timerX");
+  let y = corner[0] === "b" ? 720 - bh - num("timerY") : num("timerY");
+  x = Math.max(0, Math.min(x, 1280 - bw)); y = Math.max(0, Math.min(y, 720 - bh));
+  g.save();
+  g.translate(x, y);
+  g.scale(k, k);
+  g.textBaseline = "top";
+  g.shadowColor = "rgba(0,0,0,.9)"; g.shadowOffsetY = 2; g.shadowBlur = 3;
+  g.font = '600 30px "Barlow Condensed", sans-serif';
+  g.fillStyle = st && st.paused ? "#9ba1a6" : "#ffffff";
+  g.fillText(main, 0, 0);
+  if (st && st.paused) {
+    g.fillStyle = "#f3b24f";
+    g.fillText("II", g.measureText(main).width + 8, 0);
+  }
+  if (sub) {
+    g.font = '600 17px "Barlow Condensed", sans-serif';
+    g.fillStyle = "#d8d4cc";
+    g.fillText(subText, 2, 32);
+  }
+  g.restore();
+}
+
+/* ---- challenge timer: its state and actions, in the settings ---- */
+let timerState = null;
+
+function timerPanel() {
+  const T = data.text, el = t => document.createElement(t);
+  const box = el("div"); box.className = "field tpanel";
+  const now = el("div"); now.className = "tnow"; now.id = "tNow";
+  const r1 = el("div"); r1.className = "trow2";
+  const lab = el("label"); lab.textContent = T.page_timer_setl; lab.htmlFor = "tSet";
+  const inp = el("input"); inp.id = "tSet"; inp.placeholder = "34:12:05"; inp.inputMode = "numeric";
+  const set = el("button"); set.type = "button"; set.className = "btn"; set.textContent = T.page_timer_set;
+  r1.append(lab, inp, set);
+  const r2 = el("div"); r2.className = "trow2";
+  const est = el("button"); est.type = "button"; est.className = "btn"; est.textContent = T.page_timer_est;
+  const pause = el("button"); pause.type = "button"; pause.className = "btn"; pause.id = "tPause";
+  const reset = el("button"); reset.type = "button"; reset.className = "btn"; reset.textContent = T.page_timer_reset;
+  r2.append(pause, est, reset);
+  const msg = el("p"); msg.className = "help"; msg.id = "tMsg";
+  box.append(now, r1, r2, msg);
+  const act = (action, seconds) => fetch(api + "timer", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action, seconds }) })
+    .then(r => r.ok ? r.json() : r.text().then(t => Promise.reject(t)))
+    .then(st => { timerState = st; showTimer(); draw(); })
+    .catch(e => { $("tMsg").textContent = String(e).trim(); });
+  set.onclick = () => {
+    const m = /^\s*(\d+)(?::(\d{1,2}))?(?::(\d{1,2}))?\s*$/.exec(inp.value);
+    if (!m) { $("tMsg").textContent = T.page_timer_bad; return; }
+    act("set", (+m[1]) * 3600 + (+(m[2] || 0)) * 60 + (+(m[3] || 0)));
+    inp.value = "";
+  };
+  est.onclick = () => { if (confirm(T.page_timer_estask)) act("estimate"); };
+  pause.onclick = () => act("pause");
+  reset.onclick = () => { if (confirm(T.page_timer_rstask)) act("reset"); };
+  setTimeout(pollTimer);
+  return box;
+}
+
+function showTimer() {
+  const T = data.text, st = timerState, now = $("tNow");
+  if (!now || !st) return;
+  now.textContent = fmt(T.page_timer_now, clock(st.elapsed)) + (st.paused ? " (" + T.page_timer_paused + ")" : "");
+  const sub = document.createElement("small");
+  sub.textContent = values.timerOn === "1" ? fmt(T.page_timer_since, clock(st.since)) : T.page_timer_off;
+  now.append(sub);
+  $("tPause").textContent = st.paused ? T.page_timer_resume : T.page_timer_pause;
+}
+
+// the state of the timer, read again every second while the settings are shown
+function pollTimer() {
+  clearTimeout(pollTimer.next);
+  if (document.body.dataset.tab === "settings" && $("tNow")) {
+    fetch(api + "timer").then(r => r.ok ? r.json() : null).then(st => {
+      if (st) { timerState = st; showTimer(); if (values.timerOn === "1") draw(); }
+    }).catch(() => {});
+  }
+  pollTimer.next = setTimeout(pollTimer, 1000);
 }
 
 function icon(g, x, y, w, rank, alpha) {

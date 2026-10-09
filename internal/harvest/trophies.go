@@ -18,6 +18,8 @@ type Species struct {
 	Class    int
 	GreatOne bool // the species has a Great One
 	Icon     int  // frame of the icons clip, minus one
+	// lowest scores of silver, gold and diamond (bronze below), 0 when unknown
+	Thresholds [3]float64
 }
 
 // Reserve is a reserve of the data files, with its species in the order of the overlay.
@@ -104,6 +106,9 @@ func LoadData(uiDir string) (*Data, error) {
 			if g := strings.Split(dist, ","); len(g) > 1 && g[1] == "1" {
 				s.GreatOne = true
 			}
+		}
+		for i := range s.Thresholds {
+			s.Thresholds[i], _ = strconv.ParseFloat(strings.TrimSpace(f[2+i]), 64)
 		}
 		d.Species[s.Hash] = s
 	}
@@ -256,4 +261,47 @@ func (d *Data) RareFurs(list []Placed, species uint32, since uint32, reserve int
 		}
 	}
 	return out
+}
+
+// Done tells whether a rank does the challenge: the medal to get (target: 0 diamond .. 3
+// bronze), or a better one when higher is set. A Great One is placed as a diamond.
+func Done(rank, target uint32, higher bool) bool {
+	return rank < 4 && (rank == target || (higher && rank < target))
+}
+
+// LastDone returns the time of the last species done for the challenge since a time: for each
+// species (each species of each reserve unless mega), the first harvest that does it; the latest
+// of those. 0 when none is done.
+func (d *Data) LastDone(list []Placed, since uint32, target uint32, higher, mega bool) uint32 {
+	first := map[[2]int]uint32{} // reserve (-1 in mega mode), species -> first time done
+	need := map[[2]int]bool{}
+	for _, r := range d.Reserves {
+		for _, s := range r.Species {
+			n := r.Number
+			if mega {
+				n = -1
+			}
+			need[[2]int{n, int(s)}] = true
+		}
+	}
+	for _, e := range list {
+		if e.Time < since || !Done(e.Rank, target, higher) {
+			continue
+		}
+		k := [2]int{e.Reserve, int(e.Species)}
+		if mega {
+			k[0] = -1
+		}
+		if !need[k] {
+			continue
+		}
+		if t, ok := first[k]; !ok || e.Time < t {
+			first[k] = e.Time
+		}
+	}
+	var last uint32
+	for _, t := range first {
+		last = max(last, t)
+	}
+	return last
 }

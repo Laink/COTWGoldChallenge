@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/Laink/COTWGoldChallenge/internal/hotkey"
+	"github.com/Laink/COTWGoldChallenge/internal/safefile"
 	"github.com/Laink/COTWGoldChallenge/internal/settings"
 )
 
@@ -89,6 +90,7 @@ func startKeys(dropzone, lang string) {
 	if _, err := os.Stat(filepath.Join(dropzone, marker)); err != nil || !hotkey.Supported {
 		return
 	}
+	startTimer(dropzone, lang)
 	if on, _ := shortcutOn(); !on {
 		toggleShortcut(nil, dropzone, lang)
 	}
@@ -126,15 +128,22 @@ func watchKey(dropzone, lang string, stop, done chan struct{}) {
 		for _, h := range held[1:] {
 			line += " " + bit(h)
 		}
-		os.WriteFile(path, []byte(line+"\n"), 0o644)
+		safefile.Write(path, []byte(line+"\n"))
 	}
 	var vks []int
+	// keys of the timer: pause or resume, show or hide
+	timerKeys := []string{"pauseKey", "timerKey"}
+	tvks, theld := make([]int, len(timerKeys)), make([]bool, len(timerKeys))
 	readKey := func() {
 		var names []string
 		vks, names = readKeys(dropzone, lang)
 		shortcut.Lock()
 		shortcut.names = names
 		shortcut.Unlock()
+		s := settings.Read(dropzone, lang)
+		for i, k := range timerKeys {
+			tvks[i], _ = hotkey.Parse(s[k])
+		}
 	}
 	readKey()
 	write()
@@ -162,6 +171,17 @@ func watchKey(dropzone, lang string, stop, done chan struct{}) {
 			case !down && held[i]:
 				held[i], changed = false, true
 			}
+		}
+		for i, vk := range tvks {
+			down := vk != 0 && hotkey.Down(vk)
+			if t := challengeTimer(); down && !theld[i] && t != nil && hotkey.GameInFront() {
+				if i == 0 {
+					t.TogglePause()
+				} else {
+					t.ToggleHidden()
+				}
+			}
+			theld[i] = down
 		}
 		if changed || time.Since(last) >= time.Second {
 			write()

@@ -12,6 +12,7 @@ import (
 
 	"github.com/Laink/COTWGoldChallenge/internal/apex"
 	"github.com/Laink/COTWGoldChallenge/internal/game"
+	"github.com/Laink/COTWGoldChallenge/internal/safefile"
 )
 
 // Files are the data files, relative to dropzone/ui.
@@ -118,7 +119,7 @@ func Write(dir string, sp map[int]*game.Species, cx *game.Codex) error {
 		return err
 	}
 	for _, name := range Files {
-		if err := os.WriteFile(filepath.Join(dir, name), files[name], 0o644); err != nil {
+		if err := safefile.Write(filepath.Join(dir, name), files[name]); err != nil {
 			return err
 		}
 	}

@@ -21,6 +21,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/Laink/COTWGoldChallenge/internal/safefile"
 )
 
 // HistoryFile is the history, relative to dropzone/ui.
@@ -36,8 +38,10 @@ type Entry struct {
 	Region  uint32
 	Reserve int
 	Manual  bool
-	Fur     uint32 // hash of the fur name ("animal_visual_variation_albino"), 0 when unknown
-	Lodge   bool   // read in the trophy lodges: no region, its reserve set when known
+	Fur     uint32  // hash of the fur name ("animal_visual_variation_albino"), 0 when unknown
+	Lodge   bool    // read in the trophy lodges: no region, its reserve set when known
+	Album   bool    // a rare fur ticked by hand in the album (Manual too): only its species and fur
+	X, Y    float32 // position on the map of the reserve, 0 to 1 over the area played; 0, 0 when unknown
 }
 
 func (e Entry) key() string {
@@ -134,12 +138,14 @@ type History struct {
 	mu      sync.Mutex
 	path    string
 	entries []Entry
-	keys    map[string]uint32 // harvests in the history -> their fur
+	index   map[string]int    // key of each harvest (not added by hand) -> its place in entries
+	alias   map[uint32]uint32 // other hash of a species in the hunting log -> its hash
+	dirty   bool              // changed since the last save that worked
 }
 
 // Load reads the history of a dropzone/ui folder; a missing file is an empty history.
 func Load(uiDir string) (*History, error) {
-	h := &History{path: filepath.Join(uiDir, HistoryFile), keys: map[string]uint32{}}
+	h := &History{path: filepath.Join(uiDir, HistoryFile), index: map[string]int{}}
 	b, err := os.ReadFile(h.path)
 	if errors.Is(err, os.ErrNotExist) {
 		return h, nil
@@ -147,7 +153,9 @@ func Load(uiDir string) (*History, error) {
 	if err != nil {
 		return nil, err
 	}
+	pos := map[string][2]float32{}
 	sc := bufio.NewScanner(bytes.NewReader(b))
+	sc.Buffer(make([]byte, 64*1024), 1<<20)
 	for sc.Scan() {
 		f := strings.Fields(sc.Text())
 		num := func(i int) uint32 {
@@ -155,6 +163,10 @@ func Load(uiDir string) (*History, error) {
 			return uint32(v)
 		}
 		switch {
+		case len(f) == 6 && f[0] == "p": // position on the map of a harvest: species time rank x y
+			x, _ := strconv.ParseFloat(f[4], 32)
+			y, _ := strconv.ParseFloat(f[5], 32)
+			pos[Entry{Species: num(1), Time: num(2), Rank: num(3)}.key()] = [2]float32{float32(x), float32(y)}
 		case (len(f) == 6 || len(f) == 7) && f[0] == "h": // no fur before version 2.5
 			s, _ := strconv.ParseFloat(f[2], 32)
 			e := Entry{Species: num(1), Score: float32(s), Rank: num(3), Time: num(4), Region: num(5), Reserve: -1}
@@ -168,67 +180,112 @@ func Load(uiDir string) (*History, error) {
 			s, _ := strconv.ParseFloat(f[2], 32)
 			r, _ := strconv.Atoi(f[5])
 			h.add(Entry{Species: num(1), Score: float32(s), Rank: num(3), Time: num(4), Reserve: r, Fur: num(6), Lodge: true})
+		case len(f) == 4 && f[0] == "f": // rare fur ticked by hand: species fur time
+			h.entries = append(h.entries, Entry{Species: num(1), Fur: num(2), Time: num(3), Rank: 4, Reserve: -1, Manual: true, Album: true})
+		}
+	}
+	if err := sc.Err(); err != nil {
+		// not read to the end: saving it again would lose the rest
+		return nil, fmt.Errorf("%s: %w", h.path, err)
+	}
+	for i, e := range h.entries {
+		if p, ok := pos[e.key()]; ok && !e.Manual {
+			h.entries[i].X, h.entries[i].Y = p[0], p[1]
 		}
 	}
 	return h, nil
 }
 
-// add adds a harvest not in the history yet. A harvest recorded before the fur was kept gets it:
-// changed is then true.
+// HasPosition tells whether the position of the harvest on the map is known.
+func (e Entry) HasPosition() bool { return e.X != 0 || e.Y != 0 }
+
+// add adds a harvest not in the history yet. A harvest already there gets what it missed: its fur
+// (not kept before version 2.5) and its position; changed is then true.
 func (h *History) add(e Entry) (added, changed bool) {
 	k := e.key()
-	fur, ok := h.keys[k]
-	if !ok {
-		// the same harvest seen in the hunting log and in the trophy lodges: the times differ by
-		// a few seconds. The one of the hunting log is kept, as the mod reads the log too.
-		if i := h.twin(e); i >= 0 {
-			old := h.entries[i]
-			if e.Lodge {
-				if old.Fur == 0 && e.Fur != 0 {
-					h.entries[i].Fur, h.keys[old.key()] = e.Fur, e.Fur
-					return false, true
-				}
-				return false, false
-			}
-			if e.Fur == 0 {
-				e.Fur = old.Fur
-			}
-			delete(h.keys, old.key())
-			h.keys[k] = e.Fur
-			h.entries[i] = e
-			return false, true
+	if i, ok := h.index[k]; ok {
+		return false, h.complete(i, e)
+	}
+	// the same harvest seen in the hunting log and in the trophy lodges: the times differ by a few
+	// seconds. The one of the hunting log is kept, as the mod reads the log too.
+	if i := h.twin(e); i >= 0 {
+		if e.Lodge {
+			return false, h.complete(i, e)
 		}
-		h.keys[k] = e.Fur
-		h.entries = append(h.entries, e)
-		return true, true
+		old := h.entries[i]
+		h.entries[i] = e
+		h.complete(i, old)
+		delete(h.index, old.key())
+		h.index[k] = i
+		return false, true
 	}
-	if fur != 0 || e.Fur == 0 {
-		return false, false
+	h.index[k] = len(h.entries)
+	h.entries = append(h.entries, e)
+	return true, true
+}
+
+// complete gives to the harvest i the fur and the position of e that it does not have.
+func (h *History) complete(i int, e Entry) bool {
+	o := &h.entries[i]
+	changed := false
+	if o.Fur == 0 && e.Fur != 0 {
+		o.Fur, changed = e.Fur, true
 	}
-	h.keys[k] = e.Fur
-	for i := range h.entries {
-		if !h.entries[i].Manual && h.entries[i].key() == k {
-			h.entries[i].Fur = e.Fur
+	if !o.HasPosition() && e.HasPosition() {
+		o.X, o.Y, changed = e.X, e.Y, true
+	}
+	return changed
+}
+
+// reindex rebuilds the index of the harvests, after entries are removed.
+func (h *History) reindex() {
+	h.index = map[string]int{}
+	for i, e := range h.entries {
+		if !e.Manual {
+			h.index[e.key()] = i
 		}
 	}
-	return false, true
+}
+
+// SetAliases gives the other hashes of a species in the hunting log (the puma is
+// "mountain lion" there), so that its harvests are found again in the trophy lodges.
+func (h *History) SetAliases(alias map[uint32]uint32) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.alias = alias
+}
+
+func (h *History) species(s uint32) uint32 {
+	if a, ok := h.alias[s]; ok {
+		return a
+	}
+	return s
 }
 
 // twin finds, for a harvest of the trophy lodges, the same harvest of the hunting log, or the
-// reverse: same species and rank, within a minute. -1 when there is none.
+// reverse: same species and rank, within a minute, the closest in time. A harvest whose position
+// is another one is someone else. -1 when there is none.
 func (h *History) twin(e Entry) int {
 	if e.Manual {
 		return -1
 	}
+	best, gap := -1, int64(61)
 	for i, o := range h.entries {
-		if o.Manual || o.Lodge == e.Lodge || o.Species != e.Species || o.Rank != e.Rank {
+		if o.Manual || o.Lodge == e.Lodge || h.species(o.Species) != h.species(e.Species) || o.Rank != e.Rank {
 			continue
 		}
-		if d := int64(o.Time) - int64(e.Time); d >= -60 && d <= 60 {
-			return i
+		if o.HasPosition() && e.HasPosition() && (o.X != e.X || o.Y != e.Y) {
+			continue
+		}
+		d := int64(o.Time) - int64(e.Time)
+		if d < 0 {
+			d = -d
+		}
+		if d < gap {
+			best, gap = i, d
 		}
 	}
-	return -1
+	return best
 }
 
 // Merge adds the harvests not in the history yet, and saves it when it changed.
@@ -247,10 +304,20 @@ func (h *History) Merge(list []Entry) (int, error) {
 		}
 		changed = changed || c
 	}
-	if !changed {
+	if !changed && !h.dirty {
 		return 0, nil
 	}
 	return n, h.save()
+}
+
+// Flush saves the history again when a save failed; the recorder calls it now and then.
+func (h *History) Flush() error {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if !h.dirty {
+		return nil
+	}
+	return h.save()
 }
 
 // SetManual sets the trophy added by hand for a species in a reserve, with the ranks of the
@@ -260,59 +327,112 @@ func (h *History) SetManual(species uint32, reserve int, rank uint32, at uint32)
 	defer h.mu.Unlock()
 	kept := h.entries[:0]
 	for _, e := range h.entries {
-		if !(e.Manual && e.Species == species && e.Reserve == reserve) {
+		if !(e.Manual && !e.Album && e.Species == species && e.Reserve == reserve) {
 			kept = append(kept, e)
 		}
 	}
 	h.entries = kept
+	h.reindex()
 	if rank != 4 {
 		h.entries = append(h.entries, Entry{Species: species, Rank: rank, Time: at, Reserve: reserve, Manual: true})
 	}
 	return h.save()
 }
 
-// Entries returns a copy of the history.
+// SetAlbum ticks a rare fur of a species in the album by hand, or unticks it.
+func (h *History) SetAlbum(species, fur uint32, on bool, at uint32) error {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	kept := h.entries[:0]
+	for _, e := range h.entries {
+		if !(e.Album && e.Species == species && e.Fur == fur) {
+			kept = append(kept, e)
+		}
+	}
+	h.entries = kept
+	h.reindex()
+	if on {
+		h.entries = append(h.entries, Entry{Species: species, Fur: fur, Time: at, Rank: 4, Reserve: -1, Manual: true, Album: true})
+	}
+	return h.save()
+}
+
+// Album returns the rare furs ticked by hand: species and fur hashes.
+func (h *History) Album() [][2]uint32 {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	var out [][2]uint32
+	for _, e := range h.entries {
+		if e.Album {
+			out = append(out, [2]uint32{e.Species, e.Fur})
+		}
+	}
+	return out
+}
+
+// Entries returns a copy of the history: the harvests and the trophies added by hand, not the
+// furs of the album.
 func (h *History) Entries() []Entry {
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	return append([]Entry(nil), h.entries...)
+	var out []Entry
+	for _, e := range h.entries {
+		if !e.Album {
+			out = append(out, e)
+		}
+	}
+	return out
 }
 
 // Counts returns the number of harvests recorded and of trophies added by hand.
 func (h *History) Counts() (int, int) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	m := 0
+	n, m := 0, 0
 	for _, e := range h.entries {
-		if e.Manual {
+		switch {
+		case e.Album:
+		case e.Manual:
 			m++
+		default:
+			n++
 		}
 	}
-	return len(h.entries) - m, m
+	return n, m
 }
 
+// save writes the history; when it fails, the history stays to be saved (dirty).
 func (h *History) save() error {
+	h.dirty = true
 	var b strings.Builder
 	b.WriteString("# COTWGoldChallenge - harvests seen by the program, and trophies added by hand\n")
 	b.WriteString("# h species score rank time region fur / t (trophy lodges) species score rank time reserve fur /\n")
-	b.WriteString("# m (by hand) species rank time reserve\n")
+	b.WriteString("# m (by hand) species rank time reserve / p (position on the map) species time rank x y /\n")
+	b.WriteString("# f (rare fur ticked by hand in the album) species fur time\n")
 	list := append([]Entry(nil), h.entries...)
 	sort.SliceStable(list, func(i, j int) bool { return list[i].Time < list[j].Time })
+	f32 := func(v float32) string { return strconv.FormatFloat(float64(v), 'f', -1, 32) }
 	for _, e := range list {
 		switch {
+		case e.Album:
+			fmt.Fprintf(&b, "f %d %d %d\n", e.Species, e.Fur, e.Time)
 		case e.Manual:
 			fmt.Fprintf(&b, "m %d %d %d %d\n", e.Species, e.Rank, e.Time, e.Reserve)
 		case e.Lodge:
-			fmt.Fprintf(&b, "t %d %s %d %d %d %d\n", e.Species, strconv.FormatFloat(float64(e.Score), 'f', -1, 32), e.Rank, e.Time, e.Reserve, e.Fur)
+			fmt.Fprintf(&b, "t %d %s %d %d %d %d\n", e.Species, f32(e.Score), e.Rank, e.Time, e.Reserve, e.Fur)
 		default:
-			fmt.Fprintf(&b, "h %d %s %d %d %d %d\n", e.Species, strconv.FormatFloat(float64(e.Score), 'f', -1, 32), e.Rank, e.Time, e.Region, e.Fur)
+			fmt.Fprintf(&b, "h %d %s %d %d %d %d\n", e.Species, f32(e.Score), e.Rank, e.Time, e.Region, e.Fur)
+		}
+		// on lines of their own: the mods of 2.5 read the lines above as they are
+		if !e.Manual && e.HasPosition() {
+			fmt.Fprintf(&b, "p %d %d %d %s %s\n", e.Species, e.Time, e.Rank, f32(e.X), f32(e.Y))
 		}
 	}
-	tmp := h.path + ".tmp"
-	if err := os.WriteFile(tmp, []byte(b.String()), 0o644); err != nil {
+	if err := safefile.Write(h.path, []byte(b.String())); err != nil {
 		return err
 	}
-	return os.Rename(tmp, h.path)
+	h.dirty = false
+	return nil
 }
 
 // Since reads the challenge start of the settings: "" (all time), YYYY-MM-DD or

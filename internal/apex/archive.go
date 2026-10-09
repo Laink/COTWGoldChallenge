@@ -127,6 +127,9 @@ func Inflate(b []byte, first bool) ([]byte, error) {
 		if first {
 			break
 		}
+		if next <= 0 {
+			return nil, errors.New("invalid AAF block offset")
+		}
 		pos += next
 	}
 	return out.Bytes(), nil
@@ -199,6 +202,46 @@ func (a *Archives) FindInContainers(name string, progress func(done, total int))
 		}
 	}
 	return nil, fmt.Errorf("%s not found", name)
+}
+
+// EachInContainers calls fn with each file packed in an AAF/SARC container whose name matches, in
+// one pass over the archives: only the containers holding such a file are decompressed.
+func (a *Archives) EachInContainers(match func(name string) bool, fn func(name string, b []byte)) {
+	for _, e := range a.Entries {
+		if e.Size < 0x40 {
+			continue
+		}
+		head, err := a.ReadAt(e, 0, 0x40)
+		if err != nil || !bytes.Equal(head[:4], []byte("AAF\x00")) {
+			continue
+		}
+		files, err := a.sarcIndex(e, int(binary.LittleEndian.Uint32(head[0x30:])))
+		if err != nil {
+			continue
+		}
+		var want []SarcFile
+		for _, f := range files {
+			if match(f.Name) {
+				want = append(want, f)
+			}
+		}
+		if len(want) == 0 {
+			continue
+		}
+		all, err := a.Read(e)
+		if err != nil {
+			continue
+		}
+		u, err := Inflate(all, false)
+		if err != nil {
+			continue
+		}
+		for _, f := range want {
+			if f.Offset+f.Size <= len(u) {
+				fn(f.Name, u[f.Offset:f.Offset+f.Size])
+			}
+		}
+	}
 }
 
 // sarcIndex decompresses only the SARC index at the start of an AAF container.

@@ -34,6 +34,9 @@ const marker = "COTWGoldChallenge.json"
 // iconsFile holds the species icons as SVG, by icon number, relative to dropzone/ui.
 const iconsFile = "cotwgc_icons.json"
 
+// zonesFile holds the regions of each reserve on the map, relative to dropzone/ui.
+const zonesFile = "cotwgc_zones.json"
+
 // legacyMarker is the marker of version 1, published as COTWSpottingPlus.
 const legacyMarker = "COTWSpottingPlus.json"
 
@@ -119,7 +122,7 @@ func main() {
 	lang := flag.String("lang", "", "language code or Steam language name")
 	uninstall := flag.Bool("uninstall", false, "remove the mod")
 	edit := flag.Bool("settings", false, "open the settings page")
-	shortcut := flag.Bool("shortcut", false, "watch the key that shows or hides the wall")
+	shortcut := flag.Bool("shortcut", false, "watch the key that shows or hides the overlay")
 	yes := flag.Bool("yes", false, "no questions")
 	out := flag.String("out", "", "write the patched file here instead of installing it")
 	previewData := flag.String("preview", "", "debug: id,min,max test data shown outside the game")
@@ -470,6 +473,8 @@ func doInstall(ui *UI, inst *game.Install, dropzone, code string, yes bool, out,
 			os.WriteFile(filepath.Join(dropzone, "ui", iconsFile), b, 0o644)
 		}
 	}
+	// regions of the reserves on the map, for the settings page
+	writeZones(arc, filepath.Join(dropzone, "ui"), cx.Regions)
 	// The hunting log is read through a link to the save folder.
 	if saves, err := game.SavesDir(inst.Epic); err != nil {
 		fmt.Println(ui.t("no_saves"))
@@ -584,7 +589,7 @@ func remove(ui *UI, dropzone string) error {
 		fmt.Println(ui.t("not_installed"))
 		return nil
 	}
-	for _, f := range append(moddata.Files, "cotwgc_toggle.txt", iconsFile) {
+	for _, f := range append(moddata.Files, "cotwgc_toggle.txt", iconsFile, zonesFile) {
 		os.Remove(filepath.Join(dropzone, "ui", f))
 	}
 	game.UnlinkSaves(dropzone)

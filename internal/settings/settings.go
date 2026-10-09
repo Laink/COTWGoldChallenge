@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/Laink/COTWGoldChallenge/internal/safefile"
 )
 
 // Path is the settings file, relative to the dropzone folder.
@@ -55,11 +57,11 @@ var yesNo = []Choice{{"1", t("Yes", "Oui")}, {"0", t("No", "Non")}}
 var Fields = []Field{
 	{Key: "since", Kind: "date", Group: "challenge", Default: d(""),
 		Label: t("Challenge start", "Début du défi"),
-		Help:  t("Only harvests made since this date count. \"All time\" counts every harvest you ever made.", "Seules les prises faites depuis cette date comptent. « Depuis toujours » : toutes vos prises comptent.")},
+		Help:  t("Only harvests made since this date count. \"All time\" counts every harvest you ever made.", "Seuls les prélèvements faits depuis cette date comptent. « Depuis toujours » : tous vos prélèvements comptent.")},
 	{Key: "scope", Kind: "choice", Group: "challenge", Default: d("reserve"),
 		Label: t("Challenge mode", "Mode du défi"),
 		Choices: []Choice{
-			{"reserve", t("Reserve: only harvests made in the reserve you play", "Réserve : seulement les prises faites dans la réserve jouée")},
+			{"reserve", t("Reserve: only harvests made in the reserve you play", "Réserve : seulement les prélèvements faits dans la réserve jouée")},
 			{"mega", t("100%: every species, harvested in any reserve", "100% : toutes les espèces, prélevées dans n'importe quelle réserve")},
 		}},
 	{Key: "tier", Kind: "choice", Group: "challenge", Default: d("1"),
@@ -115,6 +117,37 @@ var Fields = []Field{
 	{Key: "aimAnim", Kind: "number", Group: "binoculars", Default: d("14"), Min: 0, Max: 60, Step: 1,
 		Label: t("Animation length (frames, 0 = none)", "Durée de l'animation (images, 0 = aucune)")},
 
+	{Key: "timerOn", Kind: "bool", Group: "timer", Default: d("0"),
+		Label: t("Show the challenge timer in the game", "Afficher le chrono du challenge en jeu"),
+		Help: t("It counts while the game window is in front and COTWGoldChallenge is open, unless you pause it. The time already played can be set or estimated below.",
+			"Il tourne tant que la fenêtre du jeu est au premier plan et que COTWGoldChallenge est ouvert, sauf si vous le mettez en pause. Le temps déjà joué se règle ou s'estime plus bas."),
+		Choices: yesNo},
+	{Key: "timerSub", Kind: "bool", Group: "timer", Default: d("1"),
+		Label: t("Under it: time since the last species done", "En dessous : temps depuis la dernière espèce validée"),
+		Help: t("In challenge time, since the last species that reached the medal to get for the first time.",
+			"En temps de challenge, depuis la dernière espèce qui a atteint pour la première fois la médaille visée."),
+		Choices: yesNo},
+	{Key: "pauseKey", Kind: "key", Group: "timer", Default: d("19:Pause"),
+		Label: t("Key to pause or resume the timer", "Touche pour mettre en pause ou relancer le chrono"),
+		Help: t("Works while COTWGoldChallenge is open. The game still receives the key.",
+			"Fonctionne tant que COTWGoldChallenge est ouvert. Le jeu reçoit quand même la touche.")},
+	{Key: "timerKey", Kind: "key", Group: "timer", Default: d("45:Insert"),
+		Label: t("Key to show or hide the timer", "Touche pour afficher ou masquer le chrono")},
+	{Key: "timerCorner", Kind: "choice", Group: "timer", Default: d("bl"),
+		Label: t("Corner of the timer", "Coin du chrono"),
+		Help: t("The distances below are from this corner, whatever the size of the timer.",
+			"Les distances ci-dessous partent de ce coin, quelle que soit la taille du chrono."),
+		Choices: []Choice{
+			{"tl", t("Top left", "En haut à gauche")}, {"tr", t("Top right", "En haut à droite")},
+			{"bl", t("Bottom left", "En bas à gauche")}, {"br", t("Bottom right", "En bas à droite")},
+		}},
+	{Key: "timerX", Kind: "slider", Group: "timer", Default: d("10"), Min: 0, Max: 1240, Step: 1,
+		Label: t("Timer: distance from the left or right edge", "Chrono : distance du bord gauche ou droit")},
+	{Key: "timerY", Kind: "slider", Group: "timer", Default: d("10"), Min: 0, Max: 700, Step: 1,
+		Label: t("Timer: distance from the top or bottom edge", "Chrono : distance du bord haut ou bas")},
+	{Key: "timerScale", Kind: "range", Group: "timer", Default: d("0.6"), Min: 0.5, Max: 2.5, Step: 0.05,
+		Label: t("Timer size", "Taille du chrono")},
+
 	{Key: "wallX", Kind: "slider", Group: "position", Advanced: true, Default: d("40"), Min: 0, Max: 1200, Step: 1,
 		Label: t("Distance from the left edge", "Distance du bord gauche")},
 	{Key: "wallY", Kind: "slider", Group: "position", Advanced: true, Default: d("40"), Min: 0, Max: 700, Step: 1,
@@ -165,6 +198,8 @@ var Fields = []Field{
 		Label: t("Species left", "Espèces restantes")},
 	{Key: "totalText", Kind: "text", Group: "texts", Advanced: true, Default: d("GLOBAL"),
 		Label: t("Overall progress", "Progression globale")},
+	{Key: "timerSubText", Kind: "text", Group: "texts", Advanced: true, Default: t("since the last species", "depuis la dernière espèce"),
+		Label: t("Timer: time since the last species", "Chrono : temps depuis la dernière espèce")},
 }
 
 // Groups gives the title of each group.
@@ -172,6 +207,7 @@ var Groups = map[string]Text{
 	"challenge":  t("Challenge", "Défi"),
 	"wall":       t("Overlay", "Overlay"),
 	"binoculars": t("Binoculars and calls", "Jumelles et cris"),
+	"timer":      t("Challenge timer", "Chrono du challenge"),
 	"position":   t("Overlay position (HUD is 1280 x 720)", "Position de l'overlay (HUD de 1280 x 720)"),
 	"mega":       t("Overlay: icons and gauge", "Overlay : icônes et jauge"),
 	"reserve":    t("List with names", "Liste avec les noms"),
@@ -249,7 +285,7 @@ func Write(dropzone, lang string, values map[string]string) error {
 	if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
 		return err
 	}
-	return os.WriteFile(p, []byte(b.String()), 0o644)
+	return safefile.Write(p, []byte(b.String()))
 }
 
 func clean(v string) string {

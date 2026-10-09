@@ -166,7 +166,11 @@ func (g *gen) gauge(species map[int]*game.Species, trace bool) {
 	g.get(rB).set(rB0)
 	g.get(rB).num(1).op("add").op("convert_d").set(rB)
 	g.op("getlocal1").op("getproperty", g.p("animal_id")).op("convert_i")
-	const ids = 140
+	// one case per icon id, up to the highest one (new species of a game update included)
+	ids := 1
+	for id := range species {
+		ids = max(ids, id+1)
+	}
 	cases := make([]string, ids)
 	for i := range cases {
 		if _, ok := species[i]; ok {
@@ -177,7 +181,7 @@ func (g *gen) gauge(species map[int]*game.Species, trace bool) {
 	}
 	g.op("lookupswitch", "unknown", cases)
 	for _, id := range game.SortedIcons(species) {
-		if id >= ids {
+		if id < 0 {
 			continue
 		}
 		sp := species[id]

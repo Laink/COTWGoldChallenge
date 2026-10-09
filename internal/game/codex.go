@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"math"
 	"strings"
 
@@ -33,10 +34,16 @@ func (c *Codex) Text(key string) string { return c.loc.get(c.lang, key) }
 var locLanguages = map[string]int{"en": 0, "fr": 1, "de": 2, "es": 3, "ru": 4, "pl": 5, "ja": 6, "pt": 7, "cs": 8, "zh-hans": 9}
 
 // LoadCodex reads the codex workbook (regions, wildlife) and the translations of a language.
-func LoadCodex(a *apex.Archives, lang string) (*Codex, error) {
+func LoadCodex(a *apex.Archives, lang string) (c *Codex, err error) {
+	// the files of a game update the reader does not know are an error, not a crash
+	defer func() {
+		if r := recover(); r != nil {
+			c, err = nil, fmt.Errorf("codex: %v", r)
+		}
+	}()
 	book, err := findADF(a, 100<<10, 2<<20, "xls_types", func(b []byte) bool {
 		s, err := xlsSheets(b)
-		return err == nil && s["Regions"] != nil && s["Wildlife"] != nil
+		return err == nil && s["Regions"] != nil && len(s["Wildlife"]) > 0
 	})
 	if err != nil {
 		return nil, errors.New("codex not found")
@@ -54,7 +61,7 @@ func LoadCodex(a *apex.Archives, lang string) (*Codex, error) {
 	if !ok {
 		li = 0
 	}
-	c := &Codex{Regions: map[uint32]int{}, ReserveNames: map[int]string{}, Names: map[string]string{}, loc: loc, lang: li}
+	c = &Codex{Regions: map[uint32]int{}, ReserveNames: map[int]string{}, Names: map[string]string{}, loc: loc, lang: li}
 	for _, sheet := range []string{"Regions", "Landmarks"} {
 		rows := sheets[sheet]
 		if len(rows) == 0 {

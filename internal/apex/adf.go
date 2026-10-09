@@ -1,9 +1,10 @@
-package harvest
+package apex
 
 import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"math"
 )
 
 // adfFile reads an ADF file with the type definitions it holds: members are found by name, so
@@ -25,17 +26,17 @@ type adfMember struct {
 	offset int
 }
 
-// adfValue is a value of an ADF file: its type and position.
-type adfValue struct {
+// ADFValue is a value of an ADF file: its type and position.
+type ADFValue struct {
 	f    *adfFile
 	typ  uint32
 	pos  int
 	inst int // start of the instance, which array offsets are relative to
 }
 
-// readADF reads the type definitions of an ADF file (d starts at " FDA") and returns its first
+// ReadADF reads the type definitions of an ADF file (d starts at " FDA") and returns its first
 // instance.
-func readADF(d []byte) (v adfValue, err error) {
+func ReadADF(d []byte) (v ADFValue, err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			err = fmt.Errorf("invalid ADF: %v", r)
@@ -79,11 +80,11 @@ func readADF(d []byte) (v adfValue, err error) {
 		return v, errors.New("no instance")
 	}
 	inst := int(u32(instOff + 8))
-	return adfValue{f, u32(instOff + 4), inst, inst}, nil
+	return ADFValue{f, u32(instOff + 4), inst, inst}, nil
 }
 
-// field returns a member of a structure.
-func (v adfValue) field(name string) (adfValue, bool) {
+// Field returns a member of a structure.
+func (v ADFValue) Field(name string) (ADFValue, bool) {
 	t := v.f.types[v.typ]
 	if t == nil || t.kind != 1 {
 		return v, false
@@ -92,13 +93,16 @@ func (v adfValue) field(name string) (adfValue, bool) {
 	if !ok {
 		return v, false
 	}
-	return adfValue{v.f, m.typ, v.pos + m.offset, v.inst}, true
+	return ADFValue{v.f, m.typ, v.pos + m.offset, v.inst}, true
 }
 
-// items returns the elements of an array.
-func (v adfValue) items() []adfValue {
+// Items returns the elements of an array.
+func (v ADFValue) Items() []ADFValue {
 	t := v.f.types[v.typ]
 	if t == nil || t.kind != 3 {
+		return nil
+	}
+	if v.pos < 0 || v.pos+12 > len(v.f.d) {
 		return nil
 	}
 	off, n := int(binary.LittleEndian.Uint32(v.f.d[v.pos:])), int(binary.LittleEndian.Uint32(v.f.d[v.pos+8:]))
@@ -106,12 +110,13 @@ func (v adfValue) items() []adfValue {
 	if et := v.f.types[t.elem]; et != nil {
 		size = int(et.size)
 	}
-	if size <= 0 || off < 0 || v.inst+off+n*size > len(v.f.d) {
+	// n checked first: n*size cannot overflow
+	if size <= 0 || v.inst+off > len(v.f.d) || n > (len(v.f.d)-v.inst-off)/size {
 		return nil
 	}
-	out := make([]adfValue, n)
+	out := make([]ADFValue, n)
 	for i := range out {
-		out[i] = adfValue{v.f, t.elem, v.inst + off + i*size, v.inst}
+		out[i] = ADFValue{v.f, t.elem, v.inst + off + i*size, v.inst}
 	}
 	return out
 }
@@ -124,9 +129,9 @@ const (
 	adfInt16  = 0xd13fcf93
 )
 
-// u32 reads an integer member of 8 to 32 bits, or the bits of a float; 0 when missing.
-func (v adfValue) u32(name string) uint32 {
-	m, ok := v.field(name)
+// U32 reads an integer member of 8 to 32 bits, or the bits of a float; 0 when missing.
+func (v ADFValue) U32(name string) uint32 {
+	m, ok := v.Field(name)
 	if !ok {
 		return 0
 	}
@@ -145,4 +150,23 @@ func (v adfValue) u32(name string) uint32 {
 		}
 	}
 	return 0
+}
+
+// Uint reads the value itself as a 32-bit integer (an element of an array of integers).
+func (v ADFValue) Uint() uint32 {
+	if v.pos < 0 || v.pos+4 > len(v.f.d) {
+		return 0
+	}
+	return binary.LittleEndian.Uint32(v.f.d[v.pos:])
+}
+
+// Floats reads n floats from the value (an inline array of floats, such as a vector).
+func (v ADFValue) Floats(n int) []float32 {
+	out := make([]float32, n)
+	for i := range out {
+		if p := v.pos + 4*i; p >= 0 && p+4 <= len(v.f.d) {
+			out[i] = math.Float32frombits(binary.LittleEndian.Uint32(v.f.d[p:]))
+		}
+	}
+	return out
 }

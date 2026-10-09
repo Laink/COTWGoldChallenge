@@ -56,14 +56,29 @@ overlay keys, which work while the game window is in front; the game still recei
 
 The menu stays open after each choice:
 
-- **3 Settings and trophies** opens the settings page: challenge start (a date, or all time), mode (reserve or
+- **3 Settings, trophies, stats and map** opens the settings page: challenge start (a date, or all time), mode (reserve or
   100%), medal to get, whether better medals count, the look and position of the overlay, and the
   overlay keys. Your settings can be made before installing. Changes are saved as you make them.
+  - The **challenge timer** (off by default) shows in the game the time of the challenge and, under
+    it, the time since the last species done. It counts while the game window is in front and
+    COTWGoldChallenge is open; a key pauses it, another one hides it. For a challenge started
+    before, set the time already played, or estimate it from the times of your harvests.
   - The **Trophies** tab shows the progress of each reserve, the missing species with the
-    reserves where they live, and, reserve by reserve, the medals found in your harvests. It lets
-    you add by hand the trophies the game no longer keeps.
+    reserves where they live, and, reserve by reserve, the medals found in your harvests and the
+    lowest score of each medal. It lets you add by hand the trophies the game no longer keeps.
+    A click on a species opens its sheet: medal scores, harvests, best score, reserves, rare
+    furs and last harvests.
   - The **Stats** tab sums up the harvests recorded: medals, rare furs, reserves, most
-    harvested species and last harvests.
+    harvested species and last harvests, with links to the map. Its **recap** draws an image of
+    the challenge or of the last session (time, species done, harvests, progress, medals), to
+    download and share.
+  - The **Map** tab places your harvests on the map of each reserve, read from your game: the
+    trophies of your lodges, and every harvest made while COTWGoldChallenge is open, at their
+    exact place. The older harvests, of which the game only keeps the region, are shown as
+    estimated zones: the outline of the region and the number of harvests in it. It zooms with the
+    detailed tiles of the game, and filters by period, medal, fur and species.
+  - The **Rare furs** tab is the album of the rare furs of every species, with their chances:
+    those harvested are ticked from your history, the others can be ticked by hand.
 - **4 Overlay keys** turns the keys off or on again. They start with the program.
 - **5 Launch the game**, through Steam or the Epic Games Launcher, with your launch options.
 - **6 Desktop shortcut**: opens COTWGoldChallenge and launches the game together, so that the

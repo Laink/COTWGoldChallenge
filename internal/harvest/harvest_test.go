@@ -246,3 +246,142 @@ func TestParseLodgesSave(t *testing.T) {
 		t.Errorf("%d furs of %d named", named, len(list))
 	}
 }
+
+func TestPositions(t *testing.T) {
+	dir := t.TempDir()
+	h, _ := Load(dir)
+	// the last harvest of the lodges, with its position, then the same harvest in the log
+	h.Merge([]Entry{{Species: 5, Rank: 1, Time: 2000, Reserve: 17, Fur: 3, X: 0.25, Y: 0.75, Lodge: true}})
+	h.Merge([]Entry{{Species: 5, Rank: 1, Time: 1996, Region: 9}})
+	// a harvest of the log, then its lodge twin with the position
+	h.Merge([]Entry{{Species: 6, Rank: 2, Time: 3000, Region: 9}})
+	if _, err := h.Merge([]Entry{{Species: 6, Rank: 2, Time: 3003, X: 0.5, Y: 0.125, Lodge: true}}); err != nil {
+		t.Fatal(err)
+	}
+	h, _ = Load(dir)
+	got := h.Entries()
+	if len(got) != 2 {
+		t.Fatalf("got %+v", got)
+	}
+	if e := got[0]; e.Lodge || e.Time != 1996 || e.X != 0.25 || e.Y != 0.75 || e.Fur != 3 {
+		t.Errorf("first %+v", e)
+	}
+	if e := got[1]; e.Lodge || e.X != 0.5 || e.Y != 0.125 {
+		t.Errorf("second %+v", e)
+	}
+	// a manual trophy does not break the index
+	h.SetManual(7, 1, 0, 1)
+	if n, _ := h.Merge([]Entry{{Species: 6, Rank: 2, Time: 3000, Region: 9}}); n != 0 {
+		t.Error("harvest added twice after a manual trophy")
+	}
+}
+
+// TestTwins: the lodge harvest goes to the closest harvest of the log, a puma of the log (its
+// other hash) is found again in the lodges.
+func TestTwins(t *testing.T) {
+	h, _ := Load(t.TempDir())
+	h.SetAliases(map[uint32]uint32{99: 9})
+	h.Merge([]Entry{{Species: 5, Rank: 2, Time: 100, Region: 1}, {Species: 5, Rank: 2, Time: 130, Region: 1}, {Species: 99, Rank: 1, Time: 500, Region: 1}})
+	h.Merge([]Entry{{Species: 5, Rank: 2, Time: 133, X: 0.5, Y: 0.5, Lodge: true}, {Species: 9, Rank: 1, Time: 504, X: 0.25, Y: 0.25, Lodge: true}})
+	got := h.Entries()
+	if len(got) != 3 {
+		t.Fatalf("got %d harvests: %+v", len(got), got)
+	}
+	for _, e := range got {
+		want := e.Time == 130 || e.Time == 500
+		if e.HasPosition() != want {
+			t.Errorf("harvest at %d: position %v %v", e.Time, e.X, e.Y)
+		}
+	}
+}
+
+// TestSaveAgain: a save that failed is done again by the next merge or by Flush.
+func TestSaveAgain(t *testing.T) {
+	dir := t.TempDir()
+	h, _ := Load(dir)
+	good := h.path
+	h.path = filepath.Join(dir, "missing", HistoryFile)
+	if _, err := h.Merge([]Entry{{Species: 5, Rank: 1, Time: 100, Region: 1}}); err == nil {
+		t.Fatal("save in a missing folder")
+	}
+	h.path = good
+	if _, err := h.Merge([]Entry{{Species: 5, Rank: 1, Time: 100, Region: 1}}); err != nil {
+		t.Fatal(err)
+	}
+	if h2, _ := Load(dir); len(h2.Entries()) != 1 {
+		t.Error("harvest not saved again by the next merge")
+	}
+	h.path = filepath.Join(dir, "missing", HistoryFile)
+	h.SetManual(7, 1, 0, 1)
+	h.path = good
+	if err := h.Flush(); err != nil {
+		t.Fatal(err)
+	}
+	if h2, _ := Load(dir); len(h2.Entries()) != 2 {
+		t.Error("manual trophy not saved again by Flush")
+	}
+}
+
+// TestLoadLongLine: a history not read to the end is an error, not a shorter history.
+func TestLoadLongLine(t *testing.T) {
+	dir := t.TempDir()
+	text := "h 5 10 1 100 1 0\n" + string(bytes.Repeat([]byte("x"), 2<<20)) + "\nh 6 10 1 200 1 0\n"
+	os.WriteFile(filepath.Join(dir, HistoryFile), []byte(text), 0o644)
+	if _, err := Load(dir); err == nil {
+		t.Error("history with a too long line read without error")
+	}
+}
+
+// TestParseLodgesDamaged: a damaged lodges file is an error, never a crash.
+func TestParseLodgesDamaged(t *testing.T) {
+	d := &Data{Engine: map[uint32]uint32{1: 1}}
+	for _, raw := range [][]byte{nil, []byte(" FDA"), append([]byte(" FDA"), make([]byte, 64)...), append([]byte(" FDA"), bytes.Repeat([]byte{0xff}, 200)...)} {
+		if _, err := ParseLodges(raw, d); err == nil {
+			t.Errorf("no error for %d bytes", len(raw))
+		}
+	}
+}
+
+// TestAlbum: rare furs ticked by hand are kept apart from the harvests and trophies.
+func TestAlbum(t *testing.T) {
+	dir := t.TempDir()
+	h, _ := Load(dir)
+	h.Merge([]Entry{{Species: 5, Rank: 1, Time: 100, Region: 1}})
+	h.SetManual(5, 2, 0, 50)
+	if err := h.SetAlbum(5, 77, true, 200); err != nil {
+		t.Fatal(err)
+	}
+	h.SetAlbum(6, 78, true, 201)
+	h.SetAlbum(6, 78, false, 202)
+	h, _ = Load(dir)
+	if a := h.Album(); len(a) != 1 || a[0] != [2]uint32{5, 77} {
+		t.Errorf("album %v", a)
+	}
+	if n, m := h.Counts(); n != 1 || m != 1 || len(h.Entries()) != 2 {
+		t.Errorf("counts %d %d, entries %d", n, m, len(h.Entries()))
+	}
+	// a trophy by hand changed: the album stays
+	h.SetManual(5, 2, 4, 50)
+	if len(h.Album()) != 1 {
+		t.Error("album lost with the trophy")
+	}
+}
+
+func TestLastDone(t *testing.T) {
+	d := &Data{Reserves: []Reserve{{Number: 1, Species: []uint32{5, 6}}, {Number: 2, Species: []uint32{5}}}}
+	list := []Placed{
+		{Entry: Entry{Species: 5, Rank: 1, Time: 100, Reserve: 1}},
+		{Entry: Entry{Species: 5, Rank: 1, Time: 300, Reserve: 1}}, // the same species again
+		{Entry: Entry{Species: 6, Rank: 2, Time: 400, Reserve: 1}}, // silver: not done for gold
+		{Entry: Entry{Species: 5, Rank: 0, Time: 200, Reserve: 2}}, // diamond, better than gold
+	}
+	if v := d.LastDone(list, 0, 1, true, false); v != 200 {
+		t.Errorf("reserve mode: %d, want 200", v)
+	}
+	if v := d.LastDone(list, 0, 1, true, true); v != 100 {
+		t.Errorf("100%% mode: %d, want 100", v)
+	}
+	if v := d.LastDone(list, 0, 1, false, false); v != 100 {
+		t.Errorf("gold only: %d, want 100", v)
+	}
+}
