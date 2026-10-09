@@ -47,6 +47,62 @@ uninstall; your settings are kept.
 
 Steam and Epic Games Store versions. The Microsoft Store / Game Pass version cannot load mods.
 
+### Linux (Steam + Proton)
+
+If you run the game on Linux through Steam Proton and COTWGoldChallenge does not track harvested animals, the symbolic link to the game's save directory may not have been created correctly.
+
+The game files and save files are stored in different directories. The save files are usually located inside the game's Proton prefix:
+```
+SteamLibrary/steamapps/compatdata/518790/pfx/drive_c/users/steamuser/Documents/Avalanche Studios/COTW/Saves/<STEAM_ID>
+```
+
+**1. Locate your save directory**
+
+Find the `hunting_log_adf` file in your Steam library's Proton prefix. For example:
+```
+find "/path/to/SteamLibrary/steamapps/compatdata/518790/pfx/drive_c/users/steamuser/Documents/Avalanche Studios/COTW/Saves" \
+  -name hunting_log_adf
+```
+
+Replace `/path/to/SteamLibrary` with your actual Steam library path.
+
+Identify the directory containing the active save file, usually the directory named after your Steam ID.
+
+**2. Create the symbolic link**
+
+Close the game and COTWGoldChallenge before proceeding.
+
+Set the following variables to match your installation:
+```bash
+GAME_DIR="/path/to/SteamLibrary/steamapps/common/theHunterCotW"
+SAVE_DIR="/path/to/SteamLibrary/steamapps/compatdata/518790/pfx/drive_c/users/steamuser/Documents/Avalanche Studios/COTW/Saves/<STEAM_ID>"
+```
+
+Replace `<STEAM_ID>` with your actual save directory name.
+
+If the installation script of the mod created an incorrectly named, empty `cotwgc_saves?` directory, remove it:
+```bash
+rmdir "$GAME_DIR/dropzone/cotwgc_saves?"
+```
+
+This command only removes an empty directory. If it fails, inspect the directory before proceeding.
+
+Create the symbolic link expected by COTWGoldChallenge:
+```bash
+ln -s "$SAVE_DIR" "$GAME_DIR/dropzone/cotwgc_saves"
+```
+
+**3. Verify the link**
+```bash
+ls -l "$GAME_DIR/dropzone/cotwgc_saves/"
+```
+
+The link should point to the directory containing your active `hunting_log_adf` file.
+
+Launch COTWGoldChallenge with wine and the game from the Steam laucher. Harvest an animal and check the mod's statistics to confirm that the harvest is recorded.
+
+Note: This is a manual workaround for installations where the save link was not created correctly. It does not delete or modify your actual save files.
+
 ## Use
 
 **Keep the COTWGoldChallenge window open while you play** (you can minimize it). The game keeps
