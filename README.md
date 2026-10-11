@@ -13,8 +13,9 @@ harvest, and whether the animal in your binoculars can make it.
   short animation plays on each better medal. The species you aim at with the binoculars, or
   hear, is highlighted. A white star marks the species of which you harvested a rare fur
   (albino, melanistic…: rare or very rare for that species, as the game rates them).
-- **Medal gauge** under the binoculars panel: gold guaranteed, gold possible with its chance,
-  gold impossible, and a bronze-to-diamond scale with the animal's trophy range.
+- **Medal gauge** under the binoculars panel: the medal you seek guaranteed, possible or
+  impossible, its chance in large (better medals included when they count), and the chances of
+  each medal on a bar. The chances take the weight and the rarity of records into account.
 - **Reserve selection**: the challenge progress of each reserve, in the main menu and in the
   change reserve screen.
 - **Settings page** in your browser, applied in the game within a few seconds.
@@ -23,8 +24,8 @@ harvest, and whether the animal in your binoculars can make it.
   opacity in 100% mode (F10).
 
 **The gauge needs the Spotting Knowledge skill, level 3.** The mod reads the trophy estimate this
-skill gives through binoculars. Without it, the gauge shows the medal thresholds of the species
-but not where the animal stands, with the line "Skill missing: Spotting Knowledge 3".
+skill gives through binoculars. Without it, the gauge shows only the line "Skill missing:
+Spotting Knowledge 3".
 
 ## Install
 

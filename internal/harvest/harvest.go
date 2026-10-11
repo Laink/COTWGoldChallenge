@@ -357,14 +357,14 @@ func (h *History) SetAlbum(species, fur uint32, on bool, at uint32) error {
 	return h.save()
 }
 
-// Album returns the rare furs ticked by hand: species and fur hashes.
-func (h *History) Album() [][2]uint32 {
+// Album returns the rare furs ticked by hand: species and fur hashes, and when they were ticked.
+func (h *History) Album() [][3]uint32 {
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	var out [][2]uint32
+	var out [][3]uint32
 	for _, e := range h.entries {
 		if e.Album {
-			out = append(out, [2]uint32{e.Species, e.Fur})
+			out = append(out, [3]uint32{e.Species, e.Fur, e.Time})
 		}
 	}
 	return out

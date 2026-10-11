@@ -201,6 +201,206 @@ package {
 		// - the weight range is the quarter of the species weight range holding the animal, truncated too;
 		// - for weight trophies, score = smin + (weight fraction +- dev) * R.
 		// Returns {pS, pG, pD, lo, hi} or null (then the panel keeps the simple estimate).
+		// Medal gauge, in the sprite the patch of SetData adds under the binoculars panel: the chance of
+		// the medal sought (or better, when better medals count) in large, then the chances of every medal
+		// on a bar. s, g, d: medal thresholds of the species. text: the words in the game language, joined
+		// with "|": title, no trophy, guaranteed x4, possible x4, impossible x4, short names x4 (bronze to
+		// diamond), percent sign, skill missing.
+		public static function gauge(panel:*, box:Sprite, data:*, s:Number, g:Number, d:Number, text:String):void {
+			try {
+				drawMedalGauge(panel, box, data, [s, g, d], String(text).split("|"));
+			} catch (e:Error) {
+				CONFIG::preview {
+					trace("COTWGC gauge " + e);
+				}
+			}
+		}
+
+		private static const GAUGE_COLORS:Array = [0xC87A35, 0xE2E2E2, 0xFFC42E, 0x8FE3FF]; // bronze .. diamond
+		private static const GAUGE_WIDTH:Number = 352.1;
+		private static const GAUGE_MARGIN:Number = 8.5; // left and right of every text and of the bar
+		private static const GAUGE_BANNER:Number = 30;
+
+		private static function drawMedalGauge(panel:*, box:Sprite, data:*, th:Array, w:Array):void {
+			var W:Number = GAUGE_WIDTH, M:Number = GAUGE_MARGIN, B:Number = GAUGE_BANNER;
+			var tier:int = 3 - Math.max(0, Math.min(3, settings.tier != null ? int(settings.tier) : 1));
+			var skill:Boolean = Boolean(data.animal_score_visible);
+			var trophy:Boolean = Number(data.animal_score_max) > 0;
+			// chances of bronze, silver, gold and diamond: the estimate, else a score evenly spread in the
+			// range (the game truncates its bounds: the top is up to 1 higher)
+			var est:Object = skill && trophy ? estimate(data) : null;
+			var lo:Number = Number(data.animal_score_min), hi:Number = Number(data.animal_score_max) + 1;
+			var up:Array = est ? [est.pS, est.pG, est.pD] : [above(lo, hi, th[0]), above(lo, hi, th[1]), above(lo, hi, th[2])];
+			var p:Array = [1 - up[0], up[0] - up[1], up[1] - up[2], up[2]];
+			var i:int;
+			for (i = 0; i < 4; i++) {
+				p[i] = Math.max(0, p[i]);
+			}
+			var chance:Number = p[tier];
+			for (i = tier + 1; i < 4 && settings.higher != "0"; i++) {
+				chance += p[i];
+			}
+			var verdict:String = "";
+			if (skill) {
+				verdict = !trophy ? w[1] : chance >= 0.995 ? w[2 + tier] : chance > 0.005 ? w[6 + tier] : w[10 + tier];
+			}
+			var body:Number = !skill ? 26 : trophy ? 50 : 0;
+			box.graphics.beginFill(0xFF9800, 1);
+			box.graphics.drawRect(0, 0, W, B);
+			box.graphics.endFill();
+			if (body > 0) {
+				box.graphics.beginFill(0x000000, 0.65);
+				box.graphics.drawRect(0, B, W, body);
+				box.graphics.endFill();
+			}
+
+			// Banner: title at the left margin, verdict at the right one, check or cross before it.
+			var bannerSrc:TextField = panel.tf_species_name;
+			bannerFont = bannerSrc.getTextFormat().font;
+			var title:TextField = gaugeText(bannerSrc, bannerSrc.filters, w[0], -1, 0);
+			placeInk(box, title, M, (B - ink(title).height) / 2);
+			if (verdict) {
+				var v:TextField = gaugeText(bannerSrc, bannerSrc.filters, verdict, -1, 0);
+				placeInk(box, v, W - M - ink(v).width, (B - ink(v).height) / 2);
+				var ix:Number = v.x + ink(v).x - 22;
+				if (ix < title.x + title.width + 4) {
+					title.visible = false;
+				}
+				// check or cross, 9 high, centred on the capitals of the verdict
+				var cy:Number = v.y + ink(v).y + ink(v).height / 2;
+				var mark:Shape = new Shape();
+				mark.filters = bannerSrc.filters;
+				mark.graphics.lineStyle(2.5, 0xFFFFFF, 1);
+				if (trophy && chance > 0.005) {
+					mark.graphics.moveTo(ix + 3, cy + 0.5);
+					mark.graphics.lineTo(ix + 7, cy + 4.5);
+					mark.graphics.lineTo(ix + 14.5, cy - 4.5);
+				} else {
+					mark.graphics.moveTo(ix + 4, cy - 4.5);
+					mark.graphics.lineTo(ix + 13, cy + 4.5);
+					mark.graphics.moveTo(ix + 13, cy - 4.5);
+					mark.graphics.lineTo(ix + 4, cy + 4.5);
+				}
+				box.addChild(mark);
+			}
+
+			var smallSrc:TextField = panel.tf_difficulty;
+			var fx:Array = panel.MCI_score.tf_score.filters;
+			if (!skill) {
+				var sk:TextField = gaugeText(smallSrc, fx, w[19] + skillName(panel), 0xFFFFFF, 13);
+				placeInk(box, sk, M, B + (body - ink(sk).height) / 2);
+				return;
+			}
+			if (!trophy) {
+				return;
+			}
+
+			// Body: the chance in large at the left margin, in a column as wide as "100 %" so that the bar
+			// always starts at the same place; the bar and its labels up to the right margin. Texts are
+			// placed by their drawn letters, so that the number and the bar block share the middle line.
+			var mid:Number = B + body / 2;
+			var big:TextField = gaugeText(bannerSrc, fx, percentText(chance, w[18]), chance > 0.005 ? GAUGE_COLORS[tier] : 0x9BA1A6, 40);
+			var column:Number = ink(gaugeText(bannerSrc, fx, percentText(1, w[18]), 0, 40)).width;
+			placeInk(box, big, M, mid - ink(big).height / 2);
+			var x0:Number = M + column + 14, x1:Number = W - M;
+			var labels:Array = [];
+			var lt:Number = Infinity, lb:Number = -Infinity; // letters of the labels, in their fields
+			for (i = 0; i < 4; i++) {
+				if (p[i] > 0.005) {
+					var name:TextField = gaugeText(smallSrc, fx, w[14 + i], GAUGE_COLORS[i], 15);
+					var value:TextField = gaugeText(smallSrc, fx, percentText(p[i], w[18]), 0xFFFFFF, 15);
+					labels.push([name, value]);
+					for each (var f:TextField in [name, value]) {
+						lt = Math.min(lt, ink(f).y);
+						lb = Math.max(lb, ink(f).bottom);
+					}
+				}
+			}
+			// the bar starts level with the top of the number, the labels end level with its bottom
+			var bigTop:Number = mid - ink(big).height / 2, bigBottom:Number = mid + ink(big).height / 2;
+			var top:Number = bigBottom - (lb - lt) - 5 - 8 >= bigTop ? bigTop : mid - (8 + 5 + lb - lt) / 2;
+			var labelTop:Number = top == bigTop ? bigBottom - (lb - lt) : top + 13;
+			var x:Number = x0;
+			for (i = 0; i < 4; i++) {
+				if (p[i] > 0.005) {
+					var sw:Number = (x1 - x0) * p[i];
+					box.graphics.beginFill(GAUGE_COLORS[i], 1);
+					box.graphics.drawRect(x, top, Math.max(1.5, x + sw >= x1 - 0.01 ? sw : sw - 1), 8);
+					box.graphics.endFill();
+					x += sw;
+				}
+			}
+			// labels from the start of the bar, on one line; the names go when they do not fit
+			var full:Number = 0;
+			for each (var l:Array in labels) {
+				full += ink(l[0]).width + 4 + ink(l[1]).width + 12;
+			}
+			x = x0;
+			for each (l in labels) {
+				if (full - 12 <= x1 - x0) {
+					placeInk(box, l[0], x, NaN);
+					l[0].y = labelTop - lt;
+					x += ink(l[0]).width + 4;
+				}
+				placeInk(box, l[1], x, NaN);
+				l[1].y = labelTop - lt;
+				x += ink(l[1]).width + 12;
+			}
+		}
+
+		// Box of the capitals and digits of a text field, in the field, from its line metrics (drawing
+		// a text field into a BitmapData crashes Scaleform). Capitals take the lower part of the ascent:
+		// 78 % in the font of the banner (measured in the game), 70 % in the others.
+		private static var bannerFont:String;
+		private static function ink(tf:TextField):Rectangle {
+			var ascent:Number = tf.textHeight * 0.8;
+			try {
+				ascent = tf.getLineMetrics(0).ascent;
+			} catch (e:Error) {
+			}
+			var cap:Number = ascent * (tf.getTextFormat().font == bannerFont ? 0.78 : 0.7);
+			return new Rectangle(2, 2 + ascent - cap, tf.textWidth, cap);
+		}
+
+		// Places a text so that its letters start at x and, unless y is NaN, at y.
+		private static function placeInk(box:Sprite, tf:TextField, x:Number, y:Number):void {
+			var r:Rectangle = ink(tf);
+			tf.x = x - r.x;
+			if (!isNaN(y)) {
+				tf.y = y - r.y;
+			}
+			box.addChild(tf);
+		}
+
+		// Chance of a score above t, for a score evenly spread in lo..hi.
+		private static function above(lo:Number, hi:Number, t:Number):Number {
+			return lo >= t ? 1 : hi <= t ? 0 : (hi - t) / (hi - lo);
+		}
+
+		// A chance as a whole percentage: 0 and 100 only when it is (nearly) sure.
+		private static function percentText(v:Number, sign:String):String {
+			return (v >= 0.995 ? 100 : v <= 0.005 ? 0 : Math.max(1, Math.min(99, Math.round(v * 100)))) + sign;
+		}
+
+		// A text in the font of src (size 0 keeps it, color -1 too), not yet placed.
+		private static function gaugeText(src:TextField, filters:Array, text:String, color:Number, size:Number):TextField {
+			var tf:TextField = copyTextField(src);
+			tf.filters = filters;
+			var fmt:TextFormat = tf.getTextFormat();
+			if (size > 0) {
+				fmt.size = size;
+			}
+			if (color >= 0) {
+				fmt.color = color;
+			}
+			tf.defaultTextFormat = fmt;
+			tf.text = text;
+			tf.setTextFormat(fmt);
+			tf.width = tf.textWidth + 6;
+			tf.height = tf.textHeight + 4;
+			return tf;
+		}
+
 		// Name of the skill the gauge needs (Spotting Knowledge, level 3), in the game language.
 		public static function skillName(panel:*):String {
 			try {
@@ -369,13 +569,25 @@ package {
 			return out;
 		}
 
-		// Score ranges R of a gender: regular animals, and with the Great Ones.
+		// Score ranges R that may set the width of the window, for a gender: its regular animals, with
+		// the Great Ones, and the whole species. A male capercaillie shown 4-5 scored 4.59: with the range
+		// of the males (3.6-5) the window could not reach 5, with the range of the species (1.5-5) it can.
 		private static function ranges(sp:Object, g:int):Array {
 			var n:Object = dist(sp, g, 0);
 			var o:Object = dist(sp, g, 1);
 			var out:Array = [n.smax - n.smin];
 			if (o && o.smax > 0) {
 				out.push(Math.max(n.smax, o.smax) - Math.min(n.smin, o.smin));
+			}
+			var lo:Number = Infinity, hi:Number = -Infinity;
+			for each (var d:Object in sp.d) {
+				if (d.smax > 0) {
+					lo = Math.min(lo, d.smin);
+					hi = Math.max(hi, d.smax);
+				}
+			}
+			if (hi - lo > out[out.length - 1] + 1e-6 && hi - lo > out[0] + 1e-6) {
+				out.push(hi - lo);
 			}
 			return out;
 		}

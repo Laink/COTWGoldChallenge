@@ -242,7 +242,7 @@ func harvestsAPI(ui *UI, dropzone string) http.HandlerFunc {
 		}
 		album := h.Album()
 		if album == nil {
-			album = [][2]uint32{}
+			album = [][3]uint32{}
 		}
 		writeJSON(w, map[string]any{"harvests": out, "species": names, "reserves": reserves, "info": info, "album": album})
 	}

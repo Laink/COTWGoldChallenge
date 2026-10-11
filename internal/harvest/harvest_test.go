@@ -354,7 +354,7 @@ func TestAlbum(t *testing.T) {
 	h.SetAlbum(6, 78, true, 201)
 	h.SetAlbum(6, 78, false, 202)
 	h, _ = Load(dir)
-	if a := h.Album(); len(a) != 1 || a[0] != [2]uint32{5, 77} {
+	if a := h.Album(); len(a) != 1 || a[0] != [3]uint32{5, 77, 200} {
 		t.Errorf("album %v", a)
 	}
 	if n, m := h.Counts(); n != 1 || m != 1 || len(h.Entries()) != 2 {

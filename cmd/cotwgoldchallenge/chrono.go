@@ -135,6 +135,10 @@ func timerAPI(ui *UI, dropzone, lang string) http.HandlerFunc {
 			case "show":
 				err = t.ToggleHidden()
 			case "estimate":
+				if harvest.Since(s["since"]) == 0 { // "all time": the harvests known do not go back that far
+					http.Error(w, ui.t("page_timer_estall"), http.StatusConflict)
+					return
+				}
 				var times []int64
 				if h := history(); h != nil {
 					for _, e := range h.Entries() {

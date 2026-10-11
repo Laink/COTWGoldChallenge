@@ -204,9 +204,16 @@ table.recent .num { text-align: right; font-variant-numeric: tabular-nums; }
 .afur.got:hover { border-color: #5b6066; cursor: default; }
 #aSearch { font: inherit; color: var(--text); background: var(--panel-2); border: 1px solid var(--line); border-radius: var(--radius); padding: 7px 10px; min-width: 220px; }
 /* species sheet */
-.sheet { position: fixed; inset: 0; z-index: 50; background: rgba(0,0,0,.66); display: flex; align-items: flex-start; justify-content: center; overflow: auto; padding: 40px 16px; }
+.sheet { position: fixed; inset: 0; z-index: 50; background: rgba(0,0,0,.66); display: flex; align-items: flex-start; justify-content: center; overflow: auto; overscroll-behavior: contain; padding: 40px 16px; }
 .sheet[hidden] { display: none; }
-.sheetbox { position: relative; width: min(920px, 100%); background: var(--bg); border: 1px solid var(--line); border-radius: var(--radius); padding: 20px 22px 26px; }
+/* the page under an open sheet stays still; the sheet keeps its place, its content scrolls */
+html:has(.sheet:not([hidden])) { overflow: hidden; }
+.sheetbox { position: relative; width: min(920px, 100%); max-height: 100%; display: flex; flex-direction: column; background: var(--bg); border: 1px solid var(--line); border-radius: var(--radius); padding: 20px 22px 26px; }
+/* the scrollbar runs near the edge of the frame, clear of the content and of the close button */
+#sheet .sheetbox { padding-right: 6px; }
+#sheetBody { min-height: 0; overflow: auto; overscroll-behavior: contain; padding-right: 16px; scrollbar-width: thin; scrollbar-color: var(--line) transparent; }
+#sheet .sheetx { right: 20px; }
+.recapbox { overflow: auto; }
 .sheetx { position: absolute; top: 10px; right: 12px; width: 34px; height: 34px; cursor: pointer; font-size: 22px; line-height: 1; color: var(--text); background: var(--panel-2); border: 1px solid var(--line); border-radius: var(--radius); }
 .sheetx:hover { border-color: var(--accent); }
 .sheethead { display: flex; align-items: center; gap: 12px; margin: 0 40px 14px 0; }
@@ -270,6 +277,7 @@ table.recent .num { text-align: right; font-variant-numeric: tabular-nums; }
 .mapbox svg.zones .zone.on { opacity: 1; }
 .mapbox svg.zones .zone.on polygon:not(.hole) { fill: rgba(243,178,79,.28); stroke: #ffd38a; stroke-width: 2.5; stroke-dasharray: none; }
 .mapbox .badge { position: absolute; transform: translate(-50%, -50%) scale(var(--inv, 1)); min-width: 24px; padding: 1px 7px; border-radius: 12px; background: rgba(20,22,24,.88); border: 1px dashed var(--focus); color: var(--text); font: 600 13px "Barlow", sans-serif; text-align: center; cursor: default; }
+.mapbox .badge.link { cursor: pointer; }
 .mapbox .badge:hover, .mapbox .badge:focus-visible { z-index: 2; outline: none; border-style: solid; }
 /* rare fur: a white star over the corner of the icon, which keeps the colour of the medal */
 .rare { position: relative; display: inline-block; flex: none; vertical-align: middle; }
@@ -343,6 +351,7 @@ table.recent .icon { margin-right: 8px; }
   <p class="intro" id="aNote" style="max-width:80ch"></p>
   <div class="tbar">
     <input type="search" id="aSearch">
+    <div class="seg row" id="aRange" role="radiogroup"><input type="radio" name="aRange" id="aR_since" checked><label for="aR_since" id="aL_since"></label><input type="radio" name="aRange" id="aR_all"><label for="aR_all" id="aL_ever"></label></div>
     <div class="seg row" id="aShow" role="radiogroup"><input type="radio" name="aShow" id="aS_all" checked><label for="aS_all" id="aL_all"></label><input type="radio" name="aShow" id="aS_have"><label for="aS_have" id="aL_have"></label><input type="radio" name="aShow" id="aS_miss"><label for="aS_miss" id="aL_miss"></label></div>
   </div>
   <p class="muted" id="aCount"></p>
@@ -462,6 +471,8 @@ fetch(api + "settings").then(r => r.json()).then(d => {
   $("aNote").textContent = T.page_album_note;
   $("aSearch").placeholder = T.page_album_find;
   $("aL_all").textContent = T.page_album_all;
+  $("aL_since").textContent = T.page_stats_since;
+  $("aL_ever").textContent = T.page_stats_all;
   $("aL_have").textContent = T.page_album_have;
   $("aL_miss").textContent = T.page_album_miss;
   $("sheetX").setAttribute("aria-label", T.page_sheet_close);
@@ -1151,21 +1162,28 @@ function loadAlbum() {
     .catch(e => { $("aCount").textContent = String(e).trim(); });
 }
 $("aSearch").oninput = $("aS_all").onchange = $("aS_have").onchange = $("aS_miss").onchange = () => showAlbum();
+$("aR_since").onchange = $("aR_all").onchange = () => showAlbum();
 
-// state of each rare fur: harvested (the first time), ticked by hand, or missing
-function furState(species, fur) {
-  const d = harvests, first = d.harvests.filter(h => h.s === species && h.fur === fur.n).sort((a, b) => a.t - b.t)[0];
+// start of the furs counted: the challenge start, or all time
+const albumSince = () => $("aR_all").checked ? 0 : sinceTime();
+
+// state of each rare fur since a time: harvested (the first time), ticked by hand, or missing; a fur
+// harvested before is told apart
+function furState(species, fur, since = 0) {
+  const d = harvests, mine = d.harvests.filter(h => h.s === species && h.fur === fur.n).sort((a, b) => a.t - b.t);
+  const first = mine.find(h => h.t >= since);
   if (first) return { got: first };
-  return { hand: d.album.some(([s, f]) => s === species && f === fur.h) };
+  return { hand: d.album.some(([s, f, t]) => s === species && f === fur.h && (t || 0) >= since), before: mine[0] };
 }
 
 // a rare fur of the album: ticked by hand on a click, unless harvested
-function furButton(species, fur, redraw) {
-  const T = data.text, st = furState(species, fur), b = document.createElement("button");
+function furButton(species, fur, redraw, since = 0) {
+  const T = data.text, st = furState(species, fur, since), b = document.createElement("button");
   b.type = "button";
   b.className = "afur" + (st.got ? " got" : st.hand ? " hand" : "");
   const date = new Intl.DateTimeFormat(data.lang, { dateStyle: "medium" });
-  b.title = st.got ? fmt(T.page_album_got, date.format(new Date(st.got.t * 1000))) : st.hand ? T.page_album_hand : T.page_album_tick;
+  b.title = st.got ? fmt(T.page_album_got, date.format(new Date(st.got.t * 1000))) : st.hand ? T.page_album_hand
+    : (st.before ? fmt(T.page_album_before, date.format(new Date(st.before.t * 1000))) + " " : "") + T.page_album_tick;
   b.setAttribute("aria-pressed", String(!!(st.got || st.hand)));
   const mark = document.createElement("span"); mark.className = "st"; mark.textContent = st.got || st.hand ? "★" : "☆";
   const name = document.createElement("span"); name.textContent = fur.n + " · " + (fur.r >= 3 ? T.page_album_vrare : T.page_album_rare);
@@ -1176,7 +1194,7 @@ function furButton(species, fur, redraw) {
       .then(r => r.ok ? r.json() : r.text().then(t => Promise.reject(t)))
       .then(() => {
         const a = harvests.album.filter(([s, f]) => !(s === species && f === fur.h));
-        if (!st.hand) a.push([species, fur.h]);
+        if (!st.hand) a.push([species, fur.h, Math.floor(Date.now() / 1000)]);
         harvests.album = a;
         redraw();
       })
@@ -1195,7 +1213,7 @@ function showAlbum() {
   const species = Object.entries(d.info).filter(([, i]) => i.furs.length).map(([s, i]) => [Number(s), i, d.species[s] || "?"])
     .sort((a, b) => a[2].localeCompare(b[2]));
   for (const [s, info, name] of species) {
-    const states = info.furs.map(f => furState(s, f)), n = states.filter(st => st.got || st.hand).length;
+    const since = albumSince(), states = info.furs.map(f => furState(s, f, since)), n = states.filter(st => st.got || st.hand).length;
     got += n; all += info.furs.length;
     if (q && !name.toLowerCase().includes(q)) continue;
     if ((have && !n) || (miss && n === info.furs.length)) continue;
@@ -1206,7 +1224,7 @@ function showAlbum() {
     h.append(c);
     h.onclick = () => openSheet(s);
     card.append(h);
-    for (const f of info.furs) card.append(furButton(s, f, showAlbum));
+    for (const f of info.furs) card.append(furButton(s, f, showAlbum, since));
     grid.append(card);
   }
   $("aCount").textContent = fmt(T.page_album_count, got, all);
@@ -1354,10 +1372,18 @@ function timerAt(tm, t) {
   return Math.max(v, 0);
 }
 
-// sessions of play: those of the timer, else harvests less than 1 h 30 apart
+// sessions of play: those of the timer, else harvests less than 1 h 30 apart. The timer starts a new
+// stretch each time the game leaves the front (alt-tab, pause): stretches less than 1 h 30 apart
+// make one session.
 function playSessions(tm, times) {
-  if (tm && tm.sessions.length) return tm.sessions.map(([a, b]) => [a, b]);
   const out = [];
+  if (tm && tm.sessions.length) {
+    for (const [a, b] of tm.sessions) {
+      const l = out[out.length - 1];
+      if (l && a - l[1] <= 5400) l[1] = Math.max(l[1], b); else out.push([a, b]);
+    }
+    return out;
+  }
   for (const t of [...times].sort((a, b) => a - b)) {
     const l = out[out.length - 1];
     if (l && t - l[1] <= 5400) l[1] = t; else out.push([t, t]);
@@ -1727,12 +1753,14 @@ function resetZoom(fit) {
     zoomAt(Math.exp(-e.deltaY * (e.deltaMode ? 0.05 : 0.0015)), ...at(e));
   }, { passive: false });
   box.addEventListener("dblclick", e => { if (!e.target.closest(".mapctl")) zoomAt(e.shiftKey ? 0.5 : 2, ...at(e)); });
-  // drag with a mouse or a finger, pinch with two fingers
+  // drag with a mouse or a finger, pinch with two fingers; a click on a species (not a drag) opens
+  // its sheet
   const down = new Map();
-  let last = null;
+  let last = null, press = null;
   box.addEventListener("pointerdown", e => {
     if (e.button || e.target.closest(".mapctl")) return;
     down.set(e.pointerId, at(e));
+    press = down.size === 1 ? { el: e.target.closest("[data-s]"), at: at(e) } : null;
     box.setPointerCapture(e.pointerId);
     last = null;
   });
@@ -1740,6 +1768,7 @@ function resetZoom(fit) {
     if (!down.has(e.pointerId)) return;
     const prev = down.get(e.pointerId), now = at(e);
     down.set(e.pointerId, now);
+    if (press && Math.hypot(now[0] - press.at[0], now[1] - press.at[1]) > 5) press = null;
     if (down.size === 1) {
       box.classList.add("drag");
       $("mTip").hidden = true;
@@ -1757,8 +1786,16 @@ function resetZoom(fit) {
     }
   });
   const up = e => { down.delete(e.pointerId); last = null; if (!down.size) box.classList.remove("drag"); };
-  box.addEventListener("pointerup", up);
-  box.addEventListener("pointercancel", up);
+  box.addEventListener("pointerup", e => {
+    if (press && press.el) { $("mTip").hidden = true; openSheet(Number(press.el.dataset.s)); }
+    press = null;
+    up(e);
+  });
+  box.addEventListener("pointercancel", e => { press = null; up(e); });
+  box.addEventListener("keydown", e => {
+    const el = e.target.closest("[data-s]");
+    if (el && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); openSheet(Number(el.dataset.s)); }
+  });
   const centre = () => { const { w, h } = mapSize(); return [w / 2, h / 2]; };
   $("mZin").onclick = () => zoomAt(1.6, ...centre());
   $("mZout").onclick = () => zoomAt(1 / 1.6, ...centre());
@@ -1980,6 +2017,7 @@ function showMap() {
         o.rare = o.rare || h.rarity >= RARE_FUR;
         bySp.set(h.s, o);
       }
+      if (bySp.size === 1) { b.dataset.s = [...bySp.keys()][0]; b.classList.add("link"); }
       const lines = [...bySp.entries()].sort((a, b) => b[1].n - a[1].n)
         .map(([s, o]) => (o.rare ? "★ " : "") + (d.species[s] || "?") + " ×" + o.n + " · " + rankName(o.rank, tiers));
       // its zone stands out while the badge is hovered
@@ -1999,6 +2037,7 @@ function showMap() {
     const p = document.createElement("span");
     p.className = "pin";
     p.dataset.k = h.t + "/" + h.s;
+    p.dataset.s = h.s;
     p.at = [ax(h.x), ay(h.y)];
     p.style.left = atX(h.x);
     p.style.top = atY(h.y);
@@ -2159,7 +2198,7 @@ function timerPanel() {
   const set = el("button"); set.type = "button"; set.className = "btn"; set.textContent = T.page_timer_set;
   r1.append(lab, inp, set);
   const r2 = el("div"); r2.className = "trow2";
-  const est = el("button"); est.type = "button"; est.className = "btn"; est.textContent = T.page_timer_est;
+  const est = el("button"); est.type = "button"; est.className = "btn"; est.id = "tEst"; est.textContent = T.page_timer_est;
   const pause = el("button"); pause.type = "button"; pause.className = "btn"; pause.id = "tPause";
   const reset = el("button"); reset.type = "button"; reset.className = "btn"; reset.textContent = T.page_timer_reset;
   r2.append(pause, est, reset);
@@ -2190,6 +2229,12 @@ function showTimer() {
   sub.textContent = values.timerOn === "1" ? fmt(T.page_timer_since, clock(st.since)) : T.page_timer_off;
   now.append(sub);
   $("tPause").textContent = st.paused ? T.page_timer_resume : T.page_timer_pause;
+  // no estimate from "all time": the harvests known do not go back that far
+  const est = $("tEst"), msg = $("tMsg");
+  est.disabled = !values.since;
+  est.title = est.disabled ? T.page_timer_estall : "";
+  if (est.disabled && !msg.textContent) msg.textContent = T.page_timer_estall;
+  else if (!est.disabled && msg.textContent === T.page_timer_estall) msg.textContent = "";
 }
 
 // the state of the timer, read again every second while the settings are shown
